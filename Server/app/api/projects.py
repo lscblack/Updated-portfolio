@@ -1,54 +1,63 @@
-from fastapi import APIRouter, Depends, HTTPException
-from typing import List
+from fastapi import APIRouter, HTTPException
+from typing import List, Optional
+from pydantic import BaseModel
 from sqlmodel import Session, select
-import httpx
 
 from ..db.session import engine
 from ..models.project import Project
-from ..schemas import ProjectCreate, ProjectRead
-from ..core.config import settings
 
 router = APIRouter()
 
 
-@router.post("/", response_model=ProjectRead)
-def create_project(payload: ProjectCreate):
-    project = Project(**payload.dict())
-    with Session(engine) as session:
-        session.add(project)
-        session.commit()
-        session.refresh(project)
-        return project
+class ProjectPayload(BaseModel):
+    title: str
+    description: Optional[str] = None
+    public: bool = True
+    github_url: Optional[str] = None
+    live_url: Optional[str] = None
+    technologies: Optional[List[str]] = None
+    categories: Optional[List[str]] = None
+    status: Optional[str] = "production"
+    order: int = 0
+    contributed: bool = True
 
 
-@router.get("/", response_model=List[ProjectRead])
+@router.get("/", response_model=List[Project])
 def list_projects():
-    with Session(engine) as session:
-        projects = session.exec(select(Project)).all()
-        return projects
+    with Session(engine) as s:
+        return s.exec(select(Project).order_by(Project.order)).all()
 
 
-@router.post("/sync_github")
-def sync_github(token: str):
-    headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github+json"}
-    url = f"{settings.GITHUB_API_BASE}/user/repos"
-    with httpx.Client() as client:
-        resp = client.get(url, headers=headers)
-        if resp.status_code != 200:
-            raise HTTPException(status_code=resp.status_code, detail="GitHub fetch failed")
-        repos = resp.json()
-        results = []
-        with Session(engine) as session:
-            for r in repos:
-                obj = Project(
-                    title=r.get("name"),
-                    description=r.get("description"),
-                    github_url=r.get("html_url"),
-                    technologies=[r.get("language")] if r.get("language") else [],
-                    public=not r.get("private", False),
-                )
-                session.add(obj)
-                session.commit()
-                session.refresh(obj)
-                results.append(obj)
-        return {"imported": len(results)}
+@router.post("/", response_model=Project)
+def create_project(payload: ProjectPayload):
+    p = Project(**payload.model_dump())
+    with Session(engine) as s:
+        s.add(p)
+        s.commit()
+        s.refresh(p)
+        return p
+
+
+@router.put("/{project_id}", response_model=Project)
+def update_project(project_id: int, payload: ProjectPayload):
+    with Session(engine) as s:
+        p = s.get(Project, project_id)
+        if not p:
+            raise HTTPException(404, "Project not found")
+        for k, v in payload.model_dump().items():
+            setattr(p, k, v)
+        s.add(p)
+        s.commit()
+        s.refresh(p)
+        return p
+
+
+@router.delete("/{project_id}")
+def delete_project(project_id: int):
+    with Session(engine) as s:
+        p = s.get(Project, project_id)
+        if not p:
+            raise HTTPException(404, "Project not found")
+        s.delete(p)
+        s.commit()
+        return {"ok": True}

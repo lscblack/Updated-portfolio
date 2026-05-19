@@ -87,9 +87,9 @@ export default function Story() {
               transition={{ delay: 0.4 }}
               className="mt-8 flex flex-wrap gap-3"
             >
-              <a href="mailto:l.christian@alustudent.com" className="btn-ghost text-xs">
+              <a href="mailto:louesauveur18@gmail.com" className="btn-ghost text-xs">
                 <BookOpen size={13} />
-                l.christian@alustudent.com
+                louesauveur18@gmail.com
               </a>
               <span className="skill-pill">+250 790 110 231</span>
             </motion.div>

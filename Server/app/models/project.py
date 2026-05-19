@@ -9,6 +9,10 @@ class Project(SQLModel, table=True):
     description: Optional[str] = None
     public: bool = True
     github_url: Optional[str] = None
+    live_url: Optional[str] = None
     technologies: Optional[List[str]] = Field(default=None, sa_column=Column(JSON))
-    extra_data: Optional[str] = None  # was 'metadata' — renamed to avoid SQLModel conflict
+    categories: Optional[List[str]] = Field(default=None, sa_column=Column(JSON))
+    extra_data: Optional[str] = None
     status: Optional[str] = "production"
+    order: int = 0
+    contributed: bool = True

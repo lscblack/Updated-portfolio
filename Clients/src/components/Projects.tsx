@@ -1,258 +1,214 @@
-import { useEffect, useRef, useState } from 'react'
-import { motion, useInView } from 'framer-motion'
-import {  Star, GitFork, ExternalLink, Loader2, Search, GitBranch } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ExternalLink } from 'lucide-react'
+import { useScrollInView } from '../hooks/useScrollInView'
+import api from '../api/client'
 
-type Repo = {
-  id: number
-  name: string
-  description: string | null
-  html_url: string
-  stargazers_count: number
-  forks_count: number
-  language: string | null
-  topics: string[]
-  updated_at: string
-  fork: boolean
+// API project shape
+type ApiProject = {
+  id: number; title: string; description: string | null
+  public: boolean; github_url: string | null; live_url: string | null
+  technologies: string[] | null; categories: string[] | null
+  status: string | null; order: number; contributed: boolean
 }
 
-const FEATURED = [
-  'OrganiChain',
-  'Safe_Land_Rwanda',
-  'Famcare',
-  'AfriTon-chatbot',
-  'BookHub_Backend_fastapi',
-  'course_management_system_Nodejs_mysql_redis',
-  'Deep-Q-Learning_Reforcement_Learning',
-  'Sentiment-Analysis',
-  'Time-Series-Forecasting',
-  'hidden-markov',
-  'Urban_Voice_classifier',
-  'linux-dashboard-control',
+// Normalised shape used by both hardcoded and API data
+type Project = {
+  title: string; desc: string; stack: string[]
+  categories: string[]; github?: string; live?: string; contributed?: boolean
+}
+
+// Projects I contributed on (fixed — shown prominently)
+const CONTRIBUTED: Project[] = [
+  {
+    title: 'NLA Land Information Portal',
+    desc: "Rwanda's national land information system protecting 14M+ citizen records with end-to-end TLS, Google Authenticator MFA, and horizontal scaling.",
+    stack: ['React', 'Redux Toolkit', 'Linux', 'MFA', 'TLS'],
+    categories: ['Web', 'Security'], live: 'https://amakuru.lands.rw', contributed: true,
+  },
+  {
+    title: 'SafeLand Rwanda',
+    desc: "National digital real-estate marketplace — blockchain-backed parcel records integrated with LAIS, RDB, RRA, and Irembo; ML-powered land valuation and fraud detection; multilingual (RW/EN/FR) for citizens, agents, and government.",
+    stack: ['Hyperledger Fabric', 'FastAPI', 'Go', 'React', 'Flutter', 'PostgreSQL', 'Redis', 'ML'],
+    categories: ['Web', 'Security'], live: 'https://safeland.rw', github: 'https://github.com/lscblack/Safe_Land_Rwanda', contributed: true,
+  },
+  {
+    title: 'Prov-Rwanda',
+    desc: "Live civic platform helping Rwandans pass the driving theory permit exam — quizzes, traffic rule guides, and study resources.",
+    stack: ['React.js', 'Firebase'], categories: ['Web', 'Open Source'],
+    live: 'https://pro-rw.netlify.app/', github: 'https://github.com/lscblack', contributed: true,
+  },
 ]
 
-const LANG_COLORS: Record<string, string> = {
-  Python: '#3776ab',
-  TypeScript: '#3178c6',
-  JavaScript: '#f7df1e',
-  Dart: '#00b4ab',
-  Go: '#00add8',
-  'Jupyter Notebook': '#da5b0b',
-  HTML: '#e34c26',
-  CSS: '#563d7c',
-  Solidity: '#aa6746',
+// Fallback for "Other Work" when API is offline
+const DEFAULT_OTHER: Project[] = [
+  { title: 'Afriton Cross-Border Payment', desc: 'Pan-African unified payment system with encrypted transaction flows and fraud prevention.', stack: ['React', 'FastAPI', 'PostgreSQL'], categories: ['Web', 'Security'], github: 'https://github.com/lscblack' },
+  { title: 'Afiacare Health System', desc: 'Patient health record platform with encrypted storage and OWASP-compliant API endpoints.', stack: ['FastAPI', 'React', 'Vite.js', 'PostgreSQL'], categories: ['Web', 'Security'], github: 'https://github.com/lscblack' },
+  { title: 'EcoTrack Rwanda', desc: 'Smart waste management system for households, collectors, and admins with real-time route optimisation.', stack: ['React', 'Django', 'Google Maps API'], categories: ['Web'], github: 'https://github.com/lscblack' },
+  { title: 'RwandaCropGuard', desc: 'Deep learning pipeline classifying crop diseases from leaf images.', stack: ['TensorFlow', 'Python'], categories: ['AI / ML'], github: 'https://github.com/lscblack' },
+  { title: 'Urban Sound Classifier', desc: 'ML pipeline for urban sound classification — audio feature extraction and multi-class modelling.', stack: ['scikit-learn', 'Python'], categories: ['AI / ML'], github: 'https://github.com/lscblack/Urban_Voice_classifier' },
+  { title: 'Medical Insurance Estimator', desc: 'Privacy-preserving mobile ML app estimating medical costs using on-device inference.', stack: ['Flutter', 'Firebase'], categories: ['Mobile', 'AI / ML'], github: 'https://github.com/lscblack' },
+  { title: 'Fam Care App', desc: 'Family healthcare management — health records, appointments, and family member profiles.', stack: ['Flutter', 'Firebase'], categories: ['Mobile'], github: 'https://github.com/lscblack/Famcare' },
+  { title: 'Cholare La Lumière', desc: 'Mobile app for managing and enjoying Cholare La Lumière songs with audio playback.', stack: ['React Native', 'Expo', 'Firebase'], categories: ['Mobile', 'Open Source'], github: 'https://github.com/lscblack' },
+  { title: 'Inventory Management System', desc: 'Full-stack inventory tracking with real-time stock updates, reporting, and user roles.', stack: ['React', 'Node.js', 'Express', 'MongoDB'], categories: ['Web'], github: 'https://github.com/lscblack' },
+  { title: 'Youth Home Platform', desc: 'Publishing and monetisation platform for African writers and artists with integrated KPay.', stack: ['PHP', 'MySQL', 'Bootstrap'], categories: ['Web'], github: 'https://github.com/lscblack' },
+  { title: 'OrganiChain', desc: 'Transparent organ donation system using Hyperledger Fabric and Go backend.', stack: ['Hyperledger Fabric', 'Go', 'TypeScript'], categories: ['Web', 'Security'], github: 'https://github.com/lscblack/OrganiChain' },
+  { title: 'AfriTon Chatbot', desc: 'Conversational AI chatbot tailored for African languages and contexts using NLP.', stack: ['Python', 'NLP', 'Jupyter'], categories: ['AI / ML'], github: 'https://github.com/lscblack/AfriTon-chatbot' },
+]
+
+function fromApi(p: ApiProject): Project {
+  return {
+    title: p.title,
+    desc: p.description ?? '',
+    stack: p.technologies ?? [],
+    categories: p.categories ?? [],
+    github: p.github_url ?? undefined,
+    live: p.live_url ?? undefined,
+    contributed: p.contributed,
+  }
 }
 
-function LanguageDot({ lang }: { lang: string }) {
-  const color = LANG_COLORS[lang] ?? '#6366f1'
-  return (
-    <span className="flex items-center gap-1.5 text-xs text-slate-500">
-      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
-      {lang}
-    </span>
-  )
-}
-
-function shimmerCards() {
-  return Array.from({ length: 6 }).map((_, i) => (
-    <div key={i} className="glass p-5 rounded-2xl h-40 shimmer" />
-  ))
-}
-
-const container = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.07 } },
-}
-const card = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
-}
-
-function humanName(name: string) {
-  return name.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-}
+const FILTERS = ['All', 'Web', 'Mobile', 'AI / ML', 'Security', 'Open Source']
 
 export default function Projects() {
-  const [repos, setRepos] = useState<Repo[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<string>('All')
-  const [search, setSearch] = useState('')
-  const [showAll, setShowAll] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const inView = useInView(ref, { once: true, margin: '-60px' })
+  const [filter, setFilter] = useState('All')
+  const [ref, inView] = useScrollInView('-60px')
+  const [otherProjects, setOtherProjects] = useState<Project[]>(DEFAULT_OTHER)
+  const [apiLoaded, setApiLoaded] = useState(false)
 
   useEffect(() => {
-    fetch('https://api.github.com/users/lscblack/repos?per_page=100&sort=updated')
-      .then(r => r.json())
-      .then((data: Repo[]) => {
-        const filtered = data.filter(r => !r.fork)
-        // Put FEATURED first, then rest sorted by updated_at
-        const featured = FEATURED
-          .map(n => filtered.find(r => r.name === n))
-          .filter(Boolean) as Repo[]
-        const rest = filtered
-          .filter(r => !FEATURED.includes(r.name))
-          .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-        setRepos([...featured, ...rest])
+    api.get('/projects/')
+      .then(r => {
+        const data: ApiProject[] = r.data
+        if (data && data.length > 0) {
+          const visible = data.filter(p => p.public).sort((a, b) => a.order - b.order)
+          setOtherProjects(visible.map(fromApi))
+          setApiLoaded(true)
+        }
       })
-      .catch(() => setRepos([]))
-      .finally(() => setLoading(false))
+      .catch(() => {/* use defaults */})
   }, [])
 
-  const languages = ['All', ...Array.from(new Set(repos.map(r => r.language).filter(Boolean) as string[]))]
-
-  const displayed = repos
-    .filter(r => filter === 'All' || r.language === filter)
-    .filter(r =>
-      search.trim() === '' ||
-      r.name.toLowerCase().includes(search.toLowerCase()) ||
-      (r.description ?? '').toLowerCase().includes(search.toLowerCase())
-    )
-    .slice(0, showAll ? 1000 : 12)
+  const filtered = otherProjects.filter(p =>
+    filter === 'All' || p.categories.includes(filter)
+  )
 
   return (
-    <section id="projects" className="py-24 relative" ref={ref}>
-      <div className="max-w-6xl mx-auto px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
-          className="mb-10"
-        >
-          <div className="section-divider" />
-          <div className="flex flex-wrap items-end justify-between gap-4 mt-2">
-            <div>
-              <h2 className="text-3xl sm:text-4xl font-bold">
-                GitHub <span className="gradient-text">Projects</span>
-              </h2>
-              <p className="mt-2 text-slate-500 flex items-center gap-2">
-                <span>Live from</span>
-                <a
-                  href="https://github.com/lscblack"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-slate-400 hover:text-indigo-400 transition-colors"
-                >
-                  <GitBranch size={13} />
-                  github.com/lscblack
-                </a>
-                {!loading && <span className="badge badge-indigo">{repos.length} repos</span>}
-              </p>
+    <section id="projects" className="py-12 sm:py-20">
+      <div className="w-11/12 mx-auto">
+        <div ref={ref} />
+
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.5 }}>
+          <p className="section-label">{'< projects />'}</p>
+          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
+            Projects
+          </h2>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            Production systems and open-source work.
+            {apiLoaded && <span className="ml-2 text-[#1A56A4] text-[11px] font-mono-stack">↻ live from db</span>}
+          </p>
+        </motion.div>
+
+        {/* ── Projects I Contributed On ── */}
+        <motion.div initial={{ opacity: 0, y: 24 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.5, delay: 0.1 }}>
+          <div className="mt-10">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-[#B8860B] mb-4">
+              Projects I Contributed On
+            </p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {CONTRIBUTED.map(p => (
+                <div key={p.title} className="relative border-l-2 border-[#1A56A4] pl-5 py-1 group">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <h3 className="font-black text-gray-900 dark:text-white text-base leading-tight group-hover:text-[#1A56A4] transition-colors">
+                        {p.title}
+                      </h3>
+                      {p.live && (
+                        <a href={p.live} target="_blank" rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-xs font-mono-stack text-[#1A56A4] hover:underline mt-0.5">
+                          {p.live.replace('https://', '')} <ExternalLink size={10} />
+                        </a>
+                      )}
+                      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{p.desc}</p>
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {p.stack.map(s => <span key={s} className="tag">{s}</span>)}
+                      </div>
+                    </div>
+                  </div>
+                  {p.github && (
+                    <a href={p.github} target="_blank" rel="noreferrer"
+                      className="mt-3 inline-block text-xs text-gray-400 hover:text-[#1A56A4] transition-colors">
+                      GitHub →
+                    </a>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         </motion.div>
 
-        {/* Filters */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={inView ? { opacity: 1 } : {}}
-          transition={{ delay: 0.2 }}
-          className="mb-6 flex flex-wrap gap-3 items-center"
-        >
-          <div className="relative flex-1 max-w-xs">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search projects…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 transition-colors"
-            />
+        {/* ── Other Work (from DB, fallback to defaults) ── */}
+        <div className="mt-14">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+              Other Work
+            </p>
+            <motion.div initial={{ opacity: 0 }} animate={inView ? { opacity: 1 } : {}} transition={{ delay: 0.2 }}>
+              <div className="flex flex-wrap gap-2">
+                {FILTERS.map(f => (
+                  <button key={f} onClick={() => setFilter(f)}
+                    className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors ${
+                      filter === f
+                        ? 'bg-[#1A56A4] text-white border-[#1A56A4]'
+                        : 'bg-transparent text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-700 hover:border-[#1A56A4] hover:text-[#1A56A4]'
+                    }`}>
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {languages.slice(0, 8).map(l => (
-              <button
-                key={l}
-                onClick={() => setFilter(l)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  filter === l
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white/5 border border-white/10 text-slate-400 hover:border-indigo-500/30 hover:text-slate-200'
-                }`}
-              >
-                {l}
-              </button>
-            ))}
+
+          <div className="divide-y divide-gray-100 dark:divide-gray-800">
+            <AnimatePresence mode="popLayout">
+              {filtered.map(p => (
+                <motion.div key={p.title} layout
+                  initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.22 }}>
+                  <div className="py-4 grid sm:grid-cols-[1fr_auto] gap-3 items-start group hover:bg-gray-50 dark:hover:bg-gray-900/40 -mx-3 px-3 rounded-lg transition-colors">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-bold text-sm text-gray-900 dark:text-gray-100 group-hover:text-[#1A56A4] transition-colors">
+                          {p.title}
+                        </h3>
+                        {p.categories.map(c => <span key={c} className="tag text-[10px]">{c}</span>)}
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{p.desc}</p>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {p.stack.map(s => <span key={s} className="tag">{s}</span>)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {p.live && (
+                        <a href={p.live} target="_blank" rel="noreferrer"
+                          className="text-[#1A56A4] hover:text-blue-700 transition-colors">
+                          <ExternalLink size={14} />
+                        </a>
+                      )}
+                      {p.github && !p.live && (
+                        <a href={p.github} target="_blank" rel="noreferrer"
+                          className="text-gray-300 dark:text-gray-600 hover:text-[#1A56A4] transition-colors">
+                          <ExternalLink size={14} />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
-        </motion.div>
+        </div>
 
-        {/* Grid */}
-        {loading ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">{shimmerCards()}</div>
-        ) : (
-          <motion.div
-            variants={container}
-            initial="hidden"
-            animate={inView ? 'visible' : 'hidden'}
-            className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5"
-          >
-            {displayed.map(repo => (
-              <motion.a
-                key={repo.id}
-                variants={card}
-                href={repo.html_url}
-                target="_blank"
-                rel="noreferrer"
-                className="glass project-card p-5 rounded-2xl flex flex-col gap-3 group"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h3 className="font-semibold text-sm text-slate-200 group-hover:text-indigo-300 transition-colors leading-tight">
-                      {humanName(repo.name)}
-                    </h3>
-                    {FEATURED.includes(repo.name) && (
-                      <span className="badge badge-violet mt-1">Featured</span>
-                    )}
-                  </div>
-                  <ExternalLink size={14} className="text-slate-600 group-hover:text-indigo-400 transition-colors flex-shrink-0 mt-0.5" />
-                </div>
-
-                <p className="text-xs text-slate-500 leading-relaxed flex-1 line-clamp-3">
-                  {repo.description || 'No description provided.'}
-                </p>
-
-                {repo.topics?.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {repo.topics.slice(0, 3).map(t => (
-                      <span key={t} className="badge badge-indigo text-[10px]">{t}</span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                  {repo.language ? (
-                    <LanguageDot lang={repo.language} />
-                  ) : (
-                    <span />
-                  )}
-                  <div className="flex items-center gap-3 text-xs text-slate-600">
-                    <span className="flex items-center gap-1">
-                      <Star size={11} />
-                      {repo.stargazers_count}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <GitFork size={11} />
-                      {repo.forks_count}
-                    </span>
-                  </div>
-                </div>
-              </motion.a>
-            ))}
-          </motion.div>
-        )}
-
-        {!loading && repos.length > 12 && !showAll && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={inView ? { opacity: 1 } : {}}
-            className="mt-10 text-center"
-          >
-            <button onClick={() => setShowAll(true)} className="btn-ghost">
-              {loading ? <Loader2 size={14} className="animate-spin" /> : null}
-              Show all {repos.length} repositories
-              <ExternalLink size={13} />
-            </button>
-          </motion.div>
-        )}
       </div>
     </section>
   )
