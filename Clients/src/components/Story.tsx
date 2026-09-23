@@ -1,137 +1,52 @@
-import { useRef } from 'react'
-import { motion, useInView } from 'framer-motion'
-import { GraduationCap, Briefcase, Users, BookOpen } from 'lucide-react'
+/** The walking character used by the Journey scene. Pure SVG + CSS keyframes (see index.css `.walker`). */
+export type WalkerState = 'idle' | 'walking'
 
-const HIGHLIGHTS = [
-  {
-    icon: GraduationCap,
-    color: '#22d3ee',
-    title: 'BSc Software Engineering',
-    sub: 'African Leadership University · 2023–2026',
-    body: 'Coursework in Linux, Web Development, Databases, Algorithms, Mobile Development, and Machine Learning. On track for May 2026 graduation.',
-  },
-  {
-    icon: Briefcase,
-    color: '#6366f1',
-    title: 'Senior Software Engineer',
-    sub: 'Nexventures Ltd · May 2025 – Present',
-    body: 'Leading development of web and mobile apps with FastAPI, PostgreSQL, React, and Flutter. Integrating AI/ML into production systems and contributing to IoT embedded systems.',
-  },
-  {
-    icon: Briefcase,
-    color: '#8b5cf6',
-    title: 'Software Engineer Intern',
-    sub: 'National Land Authority · Mar 2024 – Apr 2026',
-    body: "Designed Figma UI/UX for Rwanda's land information portal. Built and deployed a React + Redux frontend on Linux servers with Google Authenticator integration and end-to-end encryption.",
-  },
-  {
-    icon: Users,
-    color: '#a78bfa',
-    title: 'Head Residential Advisor',
-    sub: 'African Leadership University · Jan 2024 – May 2026',
-    body: 'Mentoring 100+ students, organizing leadership programs, and serving as liaison between students and administration. Crisis management and community building.',
-  },
-]
-
-export default function Story() {
-  const ref = useRef<HTMLDivElement>(null)
-  const inView = useInView(ref, { once: true, margin: '-80px' })
-
+export default function Walker({ state, facing = 1, speed = 1, size = 150, className = '' }: { state: WalkerState; facing?: 1 | -1; speed?: number; size?: number; className?: string }) {
+  const step = Math.max(0.28, Math.min(0.8, 0.62 / Math.max(0.4, speed)))
   return (
-    <section id="about" className="py-24 relative" ref={ref}>
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="grid lg:grid-cols-2 gap-16 items-start">
+    <svg viewBox="0 0 84 144" width={size * 0.58} height={size} className={`walker ${state} ${className}`}
+      style={{ ['--step' as string]: `${step}s`, transform: `scaleX(${facing})`, transformOrigin: '50% 50%' }} aria-hidden="true">
+      {/* shadow */}
+      <ellipse cx="44" cy="139" rx="22" ry="3.5" fill="currentColor" opacity=".18" />
 
-          {/* Text */}
-          <div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6 }}
-            >
-              <div className="section-divider" />
-              <h2 className="text-3xl sm:text-4xl font-bold mt-2">
-                About <span className="gradient-text">Me</span>
-              </h2>
-            </motion.div>
+      {/* back leg */}
+      <g className="leg-l" style={{ transformBox: 'view-box', transformOrigin: '44px 76px' }}>
+        <line x1="44" y1="76" x2="44" y2="104" stroke="var(--fg)" strokeWidth="10" strokeLinecap="round" opacity=".78" />
+        <g className="shin-l" style={{ transformBox: 'view-box', transformOrigin: '44px 104px' }}>
+          <line x1="44" y1="104" x2="44" y2="130" stroke="var(--fg)" strokeWidth="9" strokeLinecap="round" opacity=".78" />
+          <path d="M40 131 h14 a4 4 0 0 1 4 4 v1 h-20 z" fill="var(--fg)" opacity=".78" />
+        </g>
+      </g>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: 0.15 }}
-              className="mt-6 space-y-5 text-slate-400 leading-relaxed"
-            >
-              <p>
-                I'm a software engineer based in Kigali, Rwanda, currently completing my Bachelor's in Software
-                Engineering at the African Leadership University (graduating May 2026). I work as a Senior Software
-                Engineer at Nexventures Ltd while simultaneously completing an internship at the National Land Authority.
-              </p>
-              <p>
-                My journey started in high school writing C++, PHP, and Python — learning algorithms and
-                database design from first principles. Since then I've shipped production systems across web,
-                mobile, AI/ML, IoT, and blockchain, trained developers across Rwanda, and mentored
-                university students as a Head Residential Advisor.
-              </p>
-              <p>
-                I hold a Stanford-affiliated Data Science certificate and a CS certificate from high school.
-                My mission is to deliver high-quality, secure, intelligent systems that solve real African problems.
-              </p>
-              <p className="text-slate-300 font-medium border-l-2 border-indigo-500 pl-4">
-                "Build with precision, secure by design, and deliver for Africa."
-              </p>
-            </motion.div>
+      <g className="body-bob">
+        {/* back arm */}
+        <g className="arm-l" style={{ transformBox: 'view-box', transformOrigin: '44px 40px' }}>
+          <line x1="44" y1="40" x2="44" y2="70" stroke="var(--fg)" strokeWidth="7" strokeLinecap="round" opacity=".7" />
+        </g>
+        {/* bag on back */}
+        <rect x="16" y="44" width="17" height="27" rx="6" fill="var(--accent)" />
+        <path d="M30 46 q-4 12 0 24" stroke="var(--bg)" strokeWidth="2" fill="none" opacity=".5" />
+        {/* torso */}
+        <path d="M44 34 v42" stroke="var(--accent)" strokeWidth="18" strokeLinecap="round" />
+        <path d="M44 34 v42" stroke="var(--fg)" strokeWidth="18" strokeLinecap="round" opacity=".08" />
+        {/* head */}
+        <circle cx="45" cy="18" r="11.5" fill="var(--fg)" />
+        <path d="M34 15 q11 -12 22 -1 q-4 -3 -11 -2 q-6 0 -11 3z" fill="var(--fg)" opacity=".9" />
+        {/* front arm */}
+        <g className="arm-r" style={{ transformBox: 'view-box', transformOrigin: '44px 40px' }}>
+          <line x1="44" y1="40" x2="44" y2="70" stroke="var(--fg)" strokeWidth="7" strokeLinecap="round" />
+          <circle cx="44" cy="72" r="4.2" fill="var(--fg)" />
+        </g>
+      </g>
 
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={inView ? { opacity: 1 } : {}}
-              transition={{ delay: 0.4 }}
-              className="mt-8 flex flex-wrap gap-3"
-            >
-              <a href="mailto:louesauveur18@gmail.com" className="btn-ghost text-xs">
-                <BookOpen size={13} />
-                louesauveur18@gmail.com
-              </a>
-              <span className="skill-pill">+250 790 110 231</span>
-            </motion.div>
-          </div>
-
-          {/* Cards */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={inView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="flex flex-col gap-4"
-          >
-            {HIGHLIGHTS.map((h, i) => {
-              const Icon = h.icon
-              return (
-                <motion.div
-                  key={h.title}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={inView ? { opacity: 1, x: 0 } : {}}
-                  transition={{ duration: 0.5, delay: 0.25 + i * 0.1 }}
-                  className="glass p-5 rounded-2xl hover:scale-[1.02] transition-transform"
-                  style={{ borderColor: `${h.color}18` }}
-                >
-                  <div className="flex items-start gap-4">
-                    <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                      style={{ background: `${h.color}18`, border: `1px solid ${h.color}30` }}
-                    >
-                      <Icon size={16} style={{ color: h.color }} />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-slate-200 text-sm">{h.title}</h3>
-                      <p className="text-xs text-slate-500 mt-0.5 mb-2">{h.sub}</p>
-                      <p className="text-slate-500 text-xs leading-relaxed">{h.body}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              )
-            })}
-          </motion.div>
-        </div>
-      </div>
-    </section>
+      {/* front leg */}
+      <g className="leg-r" style={{ transformBox: 'view-box', transformOrigin: '44px 76px' }}>
+        <line x1="44" y1="76" x2="44" y2="104" stroke="var(--fg)" strokeWidth="10" strokeLinecap="round" />
+        <g className="shin-r" style={{ transformBox: 'view-box', transformOrigin: '44px 104px' }}>
+          <line x1="44" y1="104" x2="44" y2="130" stroke="var(--fg)" strokeWidth="9" strokeLinecap="round" />
+          <path d="M40 131 h14 a4 4 0 0 1 4 4 v1 h-20 z" fill="var(--accent)" />
+        </g>
+      </g>
+    </svg>
   )
 }

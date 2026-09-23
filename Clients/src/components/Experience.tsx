@@ -1,99 +1,81 @@
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { useScrollInView } from '../hooks/useScrollInView'
-import api from '../api/client'
-
-type Job = {
-  id?: number
-  num: string; title: string; company: string; location: string
-  period: string; job_type: string; bullets: string[]; tags: string[]
-  order: number; visible: boolean
-}
-
-const DEFAULT_JOBS: Job[] = [
-  { num: '01', title: 'Senior Software Engineer', period: 'May 2025 – Present', company: 'Nexventures Ltd', location: 'Kigali, Rwanda', job_type: 'Full-time', bullets: ['Led web and mobile app development using FastAPI, PostgreSQL, React, and Flutter', 'Designed secure RESTful APIs with JWT auth, input validation, and rate limiting', 'Integrated AI/ML models into production pipelines; evaluated adversarial robustness', 'Implemented CI/CD pipelines with security gates and automated testing', 'Contributed to IoT embedded systems (Arduino) with device auth considerations', 'Mentored junior engineers on secure coding practices and OWASP Top 10'], tags: ['FastAPI', 'React', 'Flutter', 'PostgreSQL', 'Docker', 'AI/ML', 'IoT'], order: 0, visible: true },
-  { num: '02', title: 'Software Engineer Intern', period: 'Mar 2024 – Apr 2026', company: 'National Land Authority (NLA)', location: 'Kigali, Rwanda', job_type: 'Internship · amakuru.lands.rw', bullets: ['Architected end-to-end TLS encryption protecting sensitive citizen land data nationwide', 'Integrated Google Authenticator (TOTP-based MFA) for all administrative users', 'Built responsive React.js + Redux Toolkit frontend for cross-device compatibility', 'Hardened Linux server environment applying principle of least privilege', 'Configured horizontal scaling to handle high-concurrency public traffic', 'Deployed system live at amakuru.lands.rw — accessible nationwide'], tags: ['React', 'Redux', 'Linux', 'MFA', 'TLS', 'Security', 'Government'], order: 1, visible: true },
-  { num: '03', title: 'Head Residential Advisor', period: 'Jan 2024 – May 2026', company: 'African Leadership University', location: 'Kigali, Rwanda', job_type: 'Leadership', bullets: ['Managed sensitive student data with strict institutional data protection compliance', 'Led crisis management and conflict resolution across a large residential community', 'Developed and ran leadership programs and student welfare initiatives'], tags: ['Leadership', 'Data Privacy', 'Crisis Management'], order: 2, visible: true },
-  { num: '04', title: 'MERN & MySQL Trainer', period: 'Apr – May 2025', company: 'Church of God TTS – School of Development', location: 'Kigali, Rwanda', job_type: 'Contract', bullets: ['Delivered MERN stack training with secure coding best practices to S6 students', 'Covered environment variables, input sanitisation, and SQL injection prevention'], tags: ['Teaching', 'MERN', 'Secure Coding'], order: 3, visible: true },
-  { num: '05', title: 'Website Development Coach', period: 'Jan – May 2023', company: 'CODEJIKA', location: 'Kigali, Rwanda', job_type: 'Part-time', bullets: ['Delivered hands-on web development instruction in HTML, CSS, PHP, and MySQL', "Developed training sessions improving learners' understanding of web fundamentals"], tags: ['Coaching', 'HTML', 'CSS', 'PHP'], order: 4, visible: true },
-  { num: '06', title: 'Full-Stack Developer', period: 'Nov 2022 – Nov 2023', company: 'Grobal Growth Company', location: 'Kigali, Rwanda', job_type: 'Full-time', bullets: ['Built Youth Home — publishing and monetisation platform for African creators', 'Integrated KPay with secure PCI-compliant transaction flows', 'Developed Android WebView app in Java, published to Google Play Store'], tags: ['PHP', 'MySQL', 'Android', 'Java', 'Payments'], order: 5, visible: true },
-]
+import { useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ArrowUpRight, MapPin, Plus } from 'lucide-react'
+import { useSite } from '../contexts/SiteContext'
+import SectionHeader from './ui/SectionHeader'
+import Reveal from './ui/Reveal'
+import { ScrollRail } from './ui/ScrollFx'
 
 export default function Experience() {
-  const [expanded, setExpanded] = useState<number | null>(0)
-  const [ref, inView] = useScrollInView()
-  const [jobs, setJobs] = useState<Job[]>(DEFAULT_JOBS)
-
-  useEffect(() => {
-    api.get('/api/experience')
-      .then(r => {
-        const data: Job[] = r.data
-        if (data && data.length > 0) {
-          setJobs(data.filter(j => j.visible !== false).sort((a, b) => a.order - b.order))
-        }
-      })
-      .catch(() => {/* use defaults */})
-  }, [])
+  const { data, sectionTitle } = useSite()
+  const jobs = (data?.experience ?? []).filter(j => j.visible !== false)
+  const t = sectionTitle('experience', { label: 'experience', title: 'Where I have worked', subtitle: '' })
+  const [open, setOpen] = useState<number>(0)
+  const [passed, setPassed] = useState(0)
+  const listRef = useRef<HTMLOListElement>(null)
+  if (!jobs.length) return null
 
   return (
-    <section id="experience" className="py-12 sm:py-20 bg-gray-50 dark:bg-gray-900/50">
-      <div className="w-11/12 mx-auto">
-        <div ref={ref} />
+    <section id="experience" className="section bg-surface/40">
+      <div className="container-x">
+        <div className="grid lg:grid-cols-[minmax(0,320px)_1fr] gap-10 lg:gap-16 items-start">
+          <div className="lg:sticky lg:top-28">
+            <SectionHeader label={t.label} title={t.title} subtitle={t.subtitle} />
+            <Reveal delay={0.2}>
+              <div className="mt-8 flex items-baseline gap-2">
+                <span className="font-display text-4xl sm:text-5xl font-extrabold text-line leading-none select-none">{String(jobs.length).padStart(2, '0')}</span>
+                <span className="font-mono text-xs text-muted tracking-widest uppercase">roles</span>
+              </div>
+            </Reveal>
+          </div>
 
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.5 }}>
-          <p className="section-label">{'{ experience }'}</p>
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
-            Work Experience
-          </h2>
-        </motion.div>
-
-        <div className="mt-12 space-y-0 divide-y divide-gray-200 dark:divide-gray-800">
-          {jobs.map((job, i) => {
-            const isOpen = expanded === i
-            return (
-              <motion.div key={job.id ?? job.num + job.company}
-                initial={{ opacity: 0, y: 24 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.45, delay: i * 0.07 }}>
-
-                <button onClick={() => setExpanded(isOpen ? null : i)}
-                  className="w-full text-left py-6 grid grid-cols-[48px_1fr_auto] sm:grid-cols-[48px_1fr_200px_80px] gap-4 items-start group">
-                  <span className="font-mono-stack text-xs text-gray-300 dark:text-gray-600 font-bold pt-1 group-hover:text-[#1A56A4] transition-colors">
-                    {job.num}
-                  </span>
-                  <div>
-                    <p className="font-black text-gray-900 dark:text-white text-base sm:text-lg leading-tight group-hover:text-[#1A56A4] transition-colors">
-                      {job.company}
-                    </p>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">{job.title}</p>
-                    <p className="text-[11px] text-gray-400 dark:text-gray-500 font-mono-stack mt-1">{job.job_type}</p>
-                  </div>
-                  <span className="hidden sm:block text-sm text-gray-400 dark:text-gray-500 text-right pt-1 leading-tight">{job.location}</span>
-                  <div className="text-right">
-                    <span className="text-xs text-gray-400 dark:text-gray-500 font-mono-stack leading-tight block">{job.period}</span>
-                    <span className="mt-2 inline-block text-[#1A56A4] text-lg leading-none">{isOpen ? '−' : '+'}</span>
-                  </div>
-                </button>
-
-                {isOpen && (
-                  <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-                    <div className="pb-8 pl-14 sm:pl-16 grid lg:grid-cols-[1fr_auto] gap-6">
-                      <ul className="space-y-2">
-                        {(job.bullets ?? []).map(b => (
-                          <li key={b} className="flex gap-3 text-sm text-gray-600 dark:text-gray-400">
-                            <span className="text-[#1A56A4] shrink-0 mt-0.5 font-bold">›</span>{b}
-                          </li>
-                        ))}
-                      </ul>
-                      <div className="flex flex-wrap lg:flex-col gap-1.5 lg:items-end lg:self-start">
-                        {(job.tags ?? []).map(t => <span key={t} className="tag">{t}</span>)}
+          <ol ref={listRef} className="relative divide-y divide-line border-y border-line pl-4 sm:pl-6">
+            <ScrollRail target={listRef} className="left-0" count={jobs.length} onIndex={setPassed} />
+            {jobs.map((job, i) => {
+              const isOpen = open === i
+              return (
+                <Reveal key={job.id ?? i} as="li" delay={i * 0.05} y={18}>
+                  <button onClick={() => setOpen(isOpen ? -1 : i)} aria-expanded={isOpen}
+                    className="w-full text-left py-6 sm:py-7 grid grid-cols-[2.5rem_1fr_auto] sm:grid-cols-[3rem_1fr_11rem_2.5rem] gap-4 items-start group">
+                    <span className={`font-mono text-xs pt-1.5 transition-colors duration-500 ${i <= passed ? 'text-accent-ink' : 'text-muted'} group-hover:text-accent-ink`}>{String(i + 1).padStart(2, '0')}</span>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <h3 className="font-display font-extrabold text-lg sm:text-xl text-fg leading-tight group-hover:text-accent-ink transition-colors">{job.company}</h3>
+                        {job.current && <span className="tag"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Current</span>}
                       </div>
+                      <p className="text-sm text-muted mt-1">{job.title}<span className="mx-2 opacity-40">/</span><span className="font-mono text-xs">{job.job_type}</span></p>
+                      <p className="sm:hidden text-xs text-muted font-mono mt-1">{job.period}</p>
                     </div>
-                  </motion.div>
-                )}
-              </motion.div>
-            )
-          })}
+                    <div className="hidden sm:block text-right">
+                      <p className="font-mono text-xs text-muted">{job.period}</p>
+                      {job.location && <p className="text-xs text-muted mt-1 inline-flex items-center gap-1"><MapPin size={11} />{job.location}</p>}
+                    </div>
+                    <span className={`w-9 h-9 rounded-full border border-line grid place-items-center text-muted transition-all ${isOpen ? 'rotate-45 border-accent text-accent-ink' : 'group-hover:border-accent group-hover:text-accent-ink'}`}><Plus size={15} /></span>
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div key="body" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} className="overflow-hidden">
+                        <div className="pb-8 pl-[3.5rem] sm:pl-[4rem] grid lg:grid-cols-[1fr_auto] gap-6">
+                          <div>
+                            {job.summary && <p className="text-sm text-muted leading-relaxed mb-4 max-w-2xl">{job.summary}</p>}
+                            <ul className="space-y-2.5">
+                              {job.bullets.map((b, k) => (
+                                <motion.li key={k} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.08 + k * 0.05 }} className="flex gap-3 text-sm text-muted leading-relaxed">
+                                  <span className="mt-2 w-1.5 h-1.5 rounded-full bg-accent shrink-0" />{b}
+                                </motion.li>
+                              ))}
+                            </ul>
+                            {job.company_url && <a href={job.company_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 mt-5 text-xs font-semibold text-accent-ink hover:underline">{job.company_url.replace(/^https?:\/\//, '')} <ArrowUpRight size={12} /></a>}
+                          </div>
+                          <div className="flex flex-wrap lg:flex-col gap-1.5 lg:items-end lg:max-w-[180px]">{job.tags.map(tg => <span key={tg} className="tag tag-neutral">{tg}</span>)}</div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </Reveal>
+              )
+            })}
+          </ol>
         </div>
       </div>
     </section>

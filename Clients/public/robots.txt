@@ -1,12 +1,4 @@
 User-agent: *
 Allow: /
-
-# Block admin dashboard from being indexed
 Disallow: /admin
-Disallow: /admin/
-
-# Sitemaps
-Sitemap: https://lscblack.dev/sitemap.xml
-
-# Crawl-delay for polite bots
-Crawl-delay: 10
+Sitemap: https://lscblack.tech/sitemap.xml

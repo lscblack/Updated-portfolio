@@ -1,92 +1,74 @@
-import { motion } from 'framer-motion'
-import { useScrollInView } from '../hooks/useScrollInView'
+import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion, useInView } from 'framer-motion'
+import { useSite } from '../contexts/SiteContext'
+import { Icon } from '../lib/icons'
+import type { Interest } from '../lib/types'
+import SectionHeader from './ui/SectionHeader'
+import { Stagger, Item } from './ui/Reveal'
+import { useMinWidth } from './ui/ScrollFx'
 
-const CATEGORIES = [
-  {
-    num: '01',
-    title: 'Cybersecurity & Secure Systems',
-    items: ['Application & API security', 'Cryptographic protocols and TLS internals', 'Zero Trust architecture', 'AI security & adversarial ML', 'Cybersecurity in African digital infrastructure'],
-  },
-  {
-    num: '02',
-    title: 'Artificial Intelligence',
-    items: ['Deep learning for agricultural & health applications', 'Privacy-preserving ML — federated learning, differential privacy', 'NLP in African languages', 'AI safety & responsible deployment'],
-  },
-  {
-    num: '03',
-    title: 'Software Architecture',
-    items: ['Distributed systems & microservices', 'Event-driven architecture', 'High-availability infrastructure design', 'Open-source software & developer tooling'],
-  },
-  {
-    num: '04',
-    title: 'African Tech Ecosystem',
-    items: ['Trusted digital infrastructure across Africa', 'Fintech innovation & cross-border payments', 'AgriTech & climate tech for the continent', 'Digital policy & data sovereignty'],
-  },
-  {
-    num: '05',
-    title: 'Research Interests',
-    items: ['Secure software development methodologies', 'Threat modelling & formal security analysis', 'Human factors in cybersecurity', 'IoT device security'],
-  },
-  {
-    num: '06',
-    title: 'Creative & Cultural',
-    items: ['African music theory & composition', 'Technology × African culture', 'Literature from the African continent', 'Community-led technology education'],
-  },
-]
+function Card({ c, i, onEnter }: { c: Interest; i: number; onEnter?: (i: number) => void }) {
+  const ref = useRef<HTMLElement>(null)
+  const inView = useInView(ref, { margin: '-45% 0px -45% 0px' })
+  useEffect(() => { if (inView && onEnter) onEnter(i) }, [inView, onEnter, i])
+  return (
+    <motion.article ref={ref} animate={{ opacity: onEnter ? (inView ? 1 : 0.45) : 1, x: onEnter && inView ? 0 : onEnter ? 12 : 0 }} transition={{ duration: 0.4 }}
+      className="group card card-hover p-6 sm:p-7">
+      <div className="flex items-center justify-between">
+        <span className="w-10 h-10 rounded-full bg-surface-2/70 grid place-items-center text-accent-ink group-hover:bg-accent group-hover:text-accent-fg transition-colors"><Icon name={c.icon} size={17} /></span>
+        <span className="font-mono text-[0.68rem] tracking-widest text-muted">{String(i + 1).padStart(2, '0')}</span>
+      </div>
+      <h3 className="mt-5 font-display font-extrabold text-lg text-fg leading-tight">{c.title}</h3>
+      <ul className="mt-4 space-y-1.5">
+        {c.items.map(it => <li key={it} className="text-sm text-muted leading-relaxed flex gap-2"><span className="mt-[0.45rem] w-1 h-1 rounded-full bg-accent-ink shrink-0" />{it}</li>)}
+      </ul>
+    </motion.article>
+  )
+}
 
 export default function Interests() {
-  const [ref, inView] = useScrollInView()
+  const { data, sectionTitle } = useSite()
+  const cats = (data?.interests ?? []).filter(c => c.visible !== false)
+  const t = sectionTitle('interests', { label: 'interests', title: 'What I think about', subtitle: '' })
+  const [active, setActive] = useState(0)
+  const desktop = useMinWidth(1024)
+  if (!cats.length) return null
+  const cur = cats[Math.min(active, cats.length - 1)]
+
+  if (!desktop) {
+    return (
+      <section id="interests" className="section">
+        <div className="container-x">
+          <SectionHeader label={t.label} title={t.title} subtitle={t.subtitle} />
+          <Stagger className="mt-10 grid sm:grid-cols-2 gap-4">
+            {cats.map((c, i) => <Item key={c.id ?? i}><Card c={c} i={i} /></Item>)}
+          </Stagger>
+        </div>
+      </section>
+    )
+  }
 
   return (
-    <section id="interests" className="py-12 sm:py-20">
-      <div className="w-11/12 mx-auto">
-        <div ref={ref} />
-
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.5 }}>
-          <p className="section-label">{'< interests />'}</p>
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
-            What I Think About
-          </h2>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-lg">
-            The domains I read, research, and build toward — beyond the day-to-day ticket queue.
-          </p>
-        </motion.div>
-
-        {/* Numbered editorial grid */}
-        <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-0 divide-y divide-gray-100 dark:divide-gray-800 sm:divide-y-0">
-          {CATEGORIES.map((cat, i) => (
-            <motion.div
-              key={cat.num}
-              initial={{ opacity: 0, y: 24 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.45, delay: i * 0.07 }}
-            >
-              <div className="p-6 border border-gray-100 dark:border-gray-800 hover:border-[#1A56A4] dark:hover:border-[#1A56A4] transition-colors group h-full">
-                {/* Number */}
-                <span className="font-mono-stack text-[11px] font-bold text-[#B8860B] tracking-widest">
-                  {cat.num}
-                </span>
-
-                {/* Title */}
-                <h3 className="mt-2 font-black text-gray-900 dark:text-white text-base leading-tight group-hover:text-[#1A56A4] dark:group-hover:text-[#4A90D9] transition-colors">
-                  {cat.title}
-                </h3>
-
-                {/* Divider */}
-                <div className="mt-3 mb-4 w-8 h-px bg-[#1A56A4] opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                {/* Items */}
-                <ul className="space-y-1.5">
-                  {cat.items.map(item => (
-                    <li key={item} className="text-xs text-gray-500 dark:text-gray-400 flex gap-2 leading-relaxed">
-                      <span className="text-[#B8860B] shrink-0">·</span>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </motion.div>
-          ))}
+    <section id="interests" className="section">
+      <div className="container-x grid lg:grid-cols-[1fr_1.1fr] gap-16 items-start">
+        <div className="lg:sticky lg:top-28 min-h-[60vh] flex flex-col">
+          <SectionHeader label={t.label} title={t.title} subtitle={t.subtitle} />
+          <div className="mt-10 relative flex-1">
+            <AnimatePresence mode="wait">
+              <motion.div key={cur.id ?? active} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} transition={{ duration: 0.35 }} className="card p-8">
+                <span className="w-14 h-14 rounded-full bg-accent text-accent-fg grid place-items-center"><Icon name={cur.icon} size={24} /></span>
+                <p className="mt-6 font-mono text-xs text-accent-ink">{String(active + 1).padStart(2, '0')} / {String(cats.length).padStart(2, '0')}</p>
+                <h3 className="mt-2 font-display font-extrabold text-2xl xl:text-3xl text-fg leading-tight text-balance">{cur.title}</h3>
+                <p className="mt-3 text-sm text-muted">{cur.items.length} focus areas</p>
+              </motion.div>
+            </AnimatePresence>
+            <div className="mt-6 flex gap-1.5">
+              {cats.map((c, i) => <span key={c.id ?? i} className={`h-1 rounded-full transition-all duration-500 ${i === active ? 'w-8 bg-accent-ink' : 'w-3 bg-line'}`} />)}
+            </div>
+          </div>
+        </div>
+        <div className="space-y-5 py-[10vh]">
+          {cats.map((c, i) => <Card key={c.id ?? i} c={c} i={i} onEnter={setActive} />)}
         </div>
       </div>
     </section>

@@ -1,125 +1,96 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Sun, Moon, Menu, X } from 'lucide-react'
+import { Sun, Moon, Menu, X, ArrowUpRight } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
-
-const LINKS = [
-  { label: 'Home', href: '#hero' },
-  { label: 'About', href: '#about' },
-  { label: 'Skills', href: '#skills' },
-  { label: 'Experience', href: '#experience' },
-  { label: 'Projects', href: '#projects' },
-  { label: 'Activities', href: '#activities' },
-  { label: 'Interests', href: '#interests' },
-  { label: 'Contact', href: '#contact' },
-]
+import { useSite } from '../contexts/SiteContext'
 
 export default function Navbar() {
-  const { theme, toggle } = useTheme()
+  const { mode, toggle } = useTheme()
+  const { data } = useSite()
   const [scrolled, setScrolled] = useState(false)
-  const [active, setActive] = useState('#hero')
+  const [active, setActive] = useState('hero')
   const [open, setOpen] = useState(false)
 
+  const links = useMemo(() => (data?.settings?.sections ?? []).filter(s => s.visible !== false && s.key !== 'hero').map(s => ({ label: s.label, href: `#${s.key}`, key: s.key })), [data])
+  const logo = data?.settings?.logo_text || 'lsc'
+  const cta = data?.settings?.resume_url ? '/resume' : ''
+
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 10)
+    const onScroll = () => setScrolled(window.scrollY > 24)
+    onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
   useEffect(() => {
-    const ids = LINKS.map(l => l.href.slice(1))
-    const sections = ids.map(id => document.getElementById(id)).filter(Boolean) as HTMLElement[]
-    const obs = new IntersectionObserver(
-      entries => {
-        entries.forEach(e => { if (e.isIntersecting) setActive('#' + e.target.id) })
-      },
-      { rootMargin: '-40% 0px -50% 0px' }
-    )
-    sections.forEach(s => obs.observe(s))
+    const ids = ['hero', ...links.map(l => l.key)]
+    const els = ids.map(id => document.getElementById(id)).filter(Boolean) as HTMLElement[]
+    if (!els.length) return
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) setActive(e.target.id) })
+    }, { rootMargin: '-45% 0px -50% 0px' })
+    els.forEach(el => obs.observe(el))
     return () => obs.disconnect()
-  }, [])
+  }, [links])
+
+  useEffect(() => { document.documentElement.style.overflow = open ? 'hidden' : '' }, [open])
 
   return (
     <>
-      <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
-          scrolled
-            ? 'bg-white/90 dark:bg-gray-950/90 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800'
-            : 'bg-transparent'
-        }`}
-      >
-        <div className="w-11/12 mx-auto h-14 flex items-center justify-between">
-          {/* Logo */}
-          <a
-            href="#hero"
-            className="font-mono-stack text-base font-bold tracking-tight text-[#1A56A4]"
-          >
-            &lt;lsc /&gt;
-          </a>
+      <motion.header initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        className="fixed top-0 inset-x-0 z-[70] pointer-events-none">
+        <div className={`container-x transition-all duration-300 ${scrolled ? 'pt-3' : 'pt-5'}`}>
+          <nav className={`pointer-events-auto flex items-center justify-between gap-4 transition-all duration-300 rounded-full px-3 sm:px-4 ${scrolled ? 'glass border border-line shadow-[0_10px_40px_-20px_rgb(0_0_0/.5)] h-14' : 'h-14 bg-transparent border border-transparent'}`} aria-label="Primary">
+            <a href="#hero" className="flex items-center gap-2 pl-1 group" aria-label="Back to top">
+              <span className="w-8 h-8 rounded-full bg-accent text-accent-fg grid place-items-center font-display font-extrabold text-sm tracking-tight transition-transform group-hover:rotate-[-8deg]">{logo.slice(0, 1).toUpperCase()}</span>
+              <span className="font-mono text-sm font-bold tracking-tight text-fg">&lt;{logo} /&gt;</span>
+            </a>
 
-          {/* Desktop links */}
-          <div className="hidden lg:flex items-center gap-6">
-            {LINKS.map(l => (
-              <a
-                key={l.href}
-                href={l.href}
-                className={`text-sm font-medium transition-colors pb-0.5 ${
-                  active === l.href
-                    ? 'text-[#1A56A4] border-b-2 border-[#1A56A4]'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
-                }`}
-              >
-                {l.label}
-              </a>
-            ))}
-          </div>
+            <ul className="hidden lg:flex items-center gap-1">
+              {links.map(l => (
+                <li key={l.key}>
+                  <a href={l.href} className={`relative px-3.5 py-2 text-[0.82rem] font-semibold rounded-full transition-colors ${active === l.key ? 'text-fg' : 'text-muted hover:text-fg'}`}>
+                    {active === l.key && <motion.span layoutId="nav-pill" className="absolute inset-0 rounded-full bg-surface-2 border border-line" transition={{ type: 'spring', stiffness: 380, damping: 32 }} />}
+                    <span className="relative">{l.label}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
 
-          {/* Right side */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={toggle}
-              aria-label="Toggle dark mode"
-              className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            >
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-            <button
-              className="lg:hidden p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              onClick={() => setOpen(o => !o)}
-              aria-label="Menu"
-            >
-              {open ? <X size={18} /> : <Menu size={18} />}
-            </button>
-          </div>
+            <div className="flex items-center gap-1.5">
+              <button onClick={toggle} aria-label={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                className="w-10 h-10 rounded-full grid place-items-center text-muted hover:text-fg hover:bg-surface-2 transition-colors">
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span key={mode} initial={{ rotate: -90, opacity: 0, scale: 0.6 }} animate={{ rotate: 0, opacity: 1, scale: 1 }} exit={{ rotate: 90, opacity: 0, scale: 0.6 }} transition={{ duration: 0.25 }} className="grid place-items-center">
+                    {mode === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+                  </motion.span>
+                </AnimatePresence>
+              </button>
+              {cta && <Link to={cta} className="btn btn-primary btn-sm hidden sm:inline-flex">Resume <ArrowUpRight size={14} /></Link>}
+              <button className="lg:hidden w-10 h-10 rounded-full grid place-items-center text-muted hover:text-fg hover:bg-surface-2 transition-colors" onClick={() => setOpen(o => !o)} aria-label="Menu" aria-expanded={open}>
+                {open ? <X size={18} /> : <Menu size={18} />}
+              </button>
+            </div>
+          </nav>
         </div>
-      </nav>
+      </motion.header>
 
-      {/* Mobile drawer */}
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.18 }}
-            className="fixed top-14 left-0 right-0 z-40 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 lg:hidden"
-          >
-            <div className="w-11/12 mx-auto py-4 flex flex-col gap-1">
-              {LINKS.map(l => (
-                <a
-                  key={l.href}
-                  href={l.href}
-                  onClick={() => setOpen(false)}
-                  className={`py-2.5 px-3 rounded-md text-sm font-medium transition-colors ${
-                    active === l.href
-                      ? 'bg-blue-50 dark:bg-blue-950 text-[#1A56A4]'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900'
-                  }`}
-                >
-                  {l.label}
-                </a>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-[65] bg-bg/95 backdrop-blur-xl lg:hidden flex flex-col pt-28 pb-10 px-8">
+            <ul className="flex flex-col gap-1">
+              {links.map((l, i) => (
+                <motion.li key={l.key} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 + i * 0.05 }}>
+                  <a href={l.href} onClick={() => setOpen(false)} className={`flex items-center justify-between py-3.5 border-b border-line font-display text-2xl font-bold ${active === l.key ? 'text-accent-ink' : 'text-fg'}`}>
+                    {l.label}
+                    <span className="font-mono text-xs text-muted">0{i + 1}</span>
+                  </a>
+                </motion.li>
               ))}
-            </div>
+            </ul>
+            {cta && <Link to={cta} className="btn btn-primary mt-8 self-start" onClick={() => setOpen(false)}>Resume <ArrowUpRight size={15} /></Link>}
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# lsc — manage the lscblack.tech portfolio deployment (installed by deploy/deploy.sh)
+set -Eeuo pipefail
+CONF=/var/www/lscblack-portfolio/.deploy/config
+[[ -f "$CONF" ]] && source "$CONF"
+APP_DIR="${APP_DIR:-/var/www/lscblack-portfolio}"; SERVICE="${SERVICE:-lscblack-api}"; API_PORT="${API_PORT:-}"
+PYBIN="${PYBIN:-}"; API_DOMAIN="${API_DOMAIN:-api.lscblack.tech}"; WEB_DOMAIN="${WEB_DOMAIN:-lscblack.tech}"; WWW_DOMAIN="${WWW_DOMAIN:-www.lscblack.tech}"
+RUN_USER="${RUN_USER:-www-data}"; BACKEND_DIR="${BACKEND_DIR:-Server}"; DB_NAME="${DB_NAME:-lscblack_portfolio}"
+c() { printf '\e[1;36m%s\e[0m\n' "$*"; }
+need_root() { [[ $EUID -eq 0 ]] || exec sudo -E "$0" "$@"; }
+case "${1:-help}" in
+  start|stop|restart|reload|enable|disable)
+      need_root "$@"; systemctl "$1" "$SERVICE"; systemctl --no-pager --lines=0 status "$SERVICE" || true ;;
+  status)
+      systemctl --no-pager status "$SERVICE" || true
+      echo; c "nginx:"; systemctl is-active nginx; c "postgres:"; systemctl is-active postgresql
+      if [[ -n "$API_PORT" ]]; then echo; c "health (127.0.0.1:$API_PORT):"; curl -s "http://127.0.0.1:$API_PORT/api/public/health" || true; echo; fi ;;
+  logs|journal)      shift; journalctl -u "$SERVICE" -f -n "${1:-100}" --no-pager ;;
+  logs-tail)         shift; journalctl -u "$SERVICE" -n "${1:-200}" --no-pager ;;
+  errors)            journalctl -u "$SERVICE" -p err -n 200 --no-pager ;;
+  nginx-logs)        tail -n 100 -f /var/log/nginx/access.log /var/log/nginx/error.log ;;
+  nginx-test)        need_root "$@"; nginx -t && systemctl reload nginx ;;
+  update)            need_root "$@"; cd "$APP_DIR"; [[ -d .git ]] && git pull --ff-only; bash "$APP_DIR/deploy/deploy.sh" --no-certbot ;;
+  deploy)            need_root "$@"; shift; bash "$APP_DIR/deploy/deploy.sh" "$@" ;;
+  build|frontend)    need_root "$@"; bash "$APP_DIR/deploy/deploy.sh" --frontend-only --no-certbot ;;
+  backend)           need_root "$@"; bash "$APP_DIR/deploy/deploy.sh" --backend-only --no-certbot ;;
+  migrate|seed)      need_root "$@"; cd "$APP_DIR/$BACKEND_DIR"; sudo -u "$RUN_USER" "$PYBIN/python" prestart.py ;;
+  shell)             cd "$APP_DIR/$BACKEND_DIR"; exec "$PYBIN/python" ;;
+  psql)              sudo -u postgres psql "$DB_NAME" ;;
+  env)               need_root "$@"; ${EDITOR:-nano} "$APP_DIR/$BACKEND_DIR/.env"; echo "run: lsc restart" ;;
+  port)              echo "${API_PORT:-unknown}" ;;
+  cert|certbot)      need_root "$@"; certbot --nginx -d "$API_DOMAIN" || echo "✖ $API_DOMAIN failed (DNS A record must point here)"
+                     certbot --nginx -d "$WEB_DOMAIN" -d "$WWW_DOMAIN" || echo "✖ $WEB_DOMAIN failed (DNS A records must point here)"; bash "$APP_DIR/deploy/deploy.sh" --frontend-only --no-certbot >/dev/null 2>&1 || true; systemctl reload nginx ;;
+  renew)             need_root "$@"; certbot renew --quiet; systemctl reload nginx ;;
+  backup)            need_root "$@"; mkdir -p "$APP_DIR/.deploy/backups"; f="$APP_DIR/.deploy/backups/portfolio-$(date +%F-%H%M).sql.gz"
+                     sudo -u postgres pg_dump "$DB_NAME" | gzip > "$f"; tar -czf "${f%.sql.gz}-uploads.tgz" -C "$APP_DIR/$BACKEND_DIR" uploads; echo "→ $f" ;;
+  help|*) cat <<H
+lsc — lscblack.tech portfolio service manager
+  lsc status              service + nginx/postgres state + API health
+  lsc start|stop|restart  control the API service ($SERVICE)
+  lsc reload              graceful worker reload (HUP)
+  lsc logs [n]            follow the journal (last n lines)   | lsc logs-tail [n] | lsc errors
+  lsc nginx-logs          follow nginx access/error logs      | lsc nginx-test (test + reload)
+  lsc update              git pull (if repo) + full redeploy  | lsc deploy [opts] (run deploy.sh)
+  lsc build               rebuild the frontend only           | lsc backend (python deps + service)
+  lsc migrate             create DB/tables/columns + seed defaults (idempotent)
+  lsc env                 edit $BACKEND_DIR/.env (then lsc restart) | lsc psql (database shell)
+  lsc port                show the local API port            | lsc shell (python in the conda env)
+  lsc cert                obtain Let's Encrypt certificates (api + apex/www) | lsc renew
+  lsc backup              pg_dump + uploads tarball into .deploy/backups
+Raw systemd:  systemctl status|start|stop|restart $SERVICE   ·   journalctl -u $SERVICE -f
+H
+  ;;
+esac

@@ -1,0 +1,40 @@
+# lscblack.tech portfolio API — rendered by deploy/deploy.sh (placeholders replaced)
+[Unit]
+Description=lscblack portfolio FastAPI backend (gunicorn + uvicorn workers)
+After=network-online.target postgresql.service
+Wants=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=@USER@
+Group=@USER@
+WorkingDirectory=@APP_DIR@/@BACKEND@
+EnvironmentFile=@APP_DIR@/@BACKEND@/.env
+Environment=PATH=@PYBIN@:/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
+# wait for PostgreSQL, create the DB if missing, create tables, seed defaults (idempotent)
+ExecStartPre=@PYBIN@/python prestart.py
+ExecStart=@PYBIN@/gunicorn app.main:app \
+  --worker-class uvicorn.workers.UvicornWorker \
+  --workers @WORKERS@ \
+  --bind 127.0.0.1:@PORT@ \
+  --forwarded-allow-ips 127.0.0.1 \
+  --timeout 120 --graceful-timeout 30 --keep-alive 5 \
+  --access-logfile - --error-logfile - --log-level info
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=3
+KillMode=mixed
+TimeoutStopSec=30
+# hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=@APP_DIR@/@BACKEND@/uploads @APP_DIR@/.deploy
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

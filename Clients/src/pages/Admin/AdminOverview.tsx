@@ -1,57 +1,91 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { User, Briefcase, FolderOpen, BookOpen, ArrowRight } from 'lucide-react'
-import api from '../../api/client'
+import { ArrowRight, Inbox, Briefcase, Route, FolderKanban, Cpu, GraduationCap, Heart, Compass, Award, Images, Activity, RefreshCw, Palette, Globe } from 'lucide-react'
+import api, { errorMessage } from '../../api/client'
+import { useSite } from '../../contexts/SiteContext'
+import { PageHeader, Card } from './ui/Fields'
+import { useToast } from './ui/Toast'
+import type { AuditEntry } from '../../lib/types'
 
-const SECTIONS = [
-  { icon: User, label: 'About', desc: 'Edit your bio, tagline, contact info, and quote.', href: '/admin/about', color: '#1A56A4' },
-  { icon: Briefcase, label: 'Experience', desc: 'Manage work history — add, edit, reorder, or remove roles.', href: '/admin/experience', color: '#059669' },
-  { icon: FolderOpen, label: 'Projects', desc: 'Manage live and portfolio projects — sync from GitHub or add manually.', href: '/admin/projects', color: '#B8860B' },
-  { icon: BookOpen, label: 'Education', desc: 'Degrees, diplomas, and certifications.', href: '/admin/education', color: '#7C3AED' },
+type Overview = { counts: Record<string, number>; messages: { unread: number; total: number }; offers?: { new: number; total: number }; uploads: number; settings_updated_at: string | null; recent_activity: AuditEntry[] }
+
+const TILES = [
+  { key: 'journey', label: 'Journey', icon: Route }, { key: 'experience', label: 'Experience', icon: Briefcase },
+  { key: 'skills', label: 'Skill groups', icon: Cpu }, { key: 'projects', label: 'Projects', icon: FolderKanban },
+  { key: 'education', label: 'Education', icon: GraduationCap }, { key: 'certifications', label: 'Certifications', icon: Award },
+  { key: 'activities', label: 'Life', icon: Heart }, { key: 'interests', label: 'Interests', icon: Compass },
 ]
 
-export default function AdminOverview() {
-  const [apiOk, setApiOk] = useState<boolean | null>(null)
+function ago(iso: string) {
+  const d = (Date.now() - new Date(iso + (iso.endsWith('Z') ? '' : 'Z')).getTime()) / 1000
+  if (d < 60) return 'just now'; if (d < 3600) return `${Math.floor(d / 60)}m ago`; if (d < 86400) return `${Math.floor(d / 3600)}h ago`; return `${Math.floor(d / 86400)}d ago`
+}
 
-  useEffect(() => {
-    api.get('/api/about').then(() => setApiOk(true)).catch(() => setApiOk(false))
-  }, [])
+export default function AdminOverview() {
+  const [ov, setOv] = useState<Overview | null>(null)
+  const [health, setHealth] = useState<boolean | null>(null)
+  const { reload } = useSite()
+  const { toast } = useToast()
+  const load = () => { api.get('/api/admin/overview').then(r => setOv(r.data)).catch(() => {}); api.get('/api/public/health').then(() => setHealth(true)).catch(() => setHealth(false)) }
+  useEffect(load, [])
+
+  const clearCache = async () => { try { await api.post('/api/admin/cache/clear'); await reload(); toast('Public cache cleared') } catch (e) { toast(errorMessage(e), 'error') } }
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-gray-100 mb-1">Portfolio Dashboard</h1>
-      <p className="text-sm text-gray-500 mb-8">
-        Edit every section of your portfolio. Changes save to the database and are reflected immediately.
-      </p>
+      <PageHeader title="Overview" description="Everything on the public site is editable from here. Changes go live the moment you save." actions={<button onClick={clearCache} className="btn btn-outline btn-sm"><RefreshCw size={13} /> Refresh public cache</button>} />
 
-      {/* API status */}
-      <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-md border mb-8 w-fit ${
-        apiOk === null ? 'border-gray-700 text-gray-500'
-        : apiOk ? 'border-green-800 bg-green-950/40 text-green-400'
-        : 'border-red-800 bg-red-950/40 text-red-400'
-      }`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${apiOk === null ? 'bg-gray-500' : apiOk ? 'bg-green-500' : 'bg-red-500'}`} />
-        {apiOk === null ? 'Checking API…' : apiOk ? 'Backend API connected' : 'Backend offline — start uvicorn from Server/'}
+      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+        <Link to="/admin/offers" className="card card-hover p-5 flex items-center gap-4">
+          <span className="w-11 h-11 rounded-full bg-accent/15 text-accent-ink grid place-items-center"><Briefcase size={18} /></span>
+          <div><p className="font-display text-2xl font-extrabold text-fg">{ov?.offers?.new ?? '–'}</p><p className="text-xs text-muted">new of {ov?.offers?.total ?? '–'} offers</p></div>
+        </Link>
+        <Link to="/admin/messages" className="card card-hover p-5 flex items-center gap-4">
+          <span className="w-11 h-11 rounded-full bg-accent/15 text-accent-ink grid place-items-center"><Inbox size={18} /></span>
+          <div><p className="font-display text-2xl font-extrabold text-fg">{ov?.messages.unread ?? '–'}</p><p className="text-xs text-muted">unread of {ov?.messages.total ?? '–'} messages</p></div>
+        </Link>
+        <Link to="/admin/media" className="card card-hover p-5 flex items-center gap-4">
+          <span className="w-11 h-11 rounded-full bg-surface-2 text-fg grid place-items-center"><Images size={18} /></span>
+          <div><p className="font-display text-2xl font-extrabold text-fg">{ov?.uploads ?? '–'}</p><p className="text-xs text-muted">uploaded images</p></div>
+        </Link>
+        <div className="card p-5 flex items-center gap-4">
+          <span className={`w-11 h-11 rounded-full grid place-items-center ${health ? 'bg-emerald-500/15 text-emerald-500' : health === false ? 'bg-red-500/15 text-red-500' : 'bg-surface-2 text-muted'}`}><Activity size={18} /></span>
+          <div><p className="font-display text-lg font-extrabold text-fg">{health ? 'API online' : health === false ? 'API offline' : 'Checking'}</p><p className="text-xs text-muted">{ov?.settings_updated_at ? `settings saved ${ago(ov.settings_updated_at)}` : 'PostgreSQL-backed'}</p></div>
+        </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-4">
-        {SECTIONS.map(s => {
-          const Icon = s.icon
-          return (
-            <Link key={s.href} to={s.href}
-              className="border border-gray-800 rounded-xl p-5 hover:border-gray-600 transition-colors group bg-gray-900/50">
-              <div className="flex items-start justify-between gap-3">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: `${s.color}20`, border: `1px solid ${s.color}40` }}>
-                  <Icon size={16} style={{ color: s.color }} />
-                </div>
-                <ArrowRight size={14} className="text-gray-700 group-hover:text-gray-400 transition-colors mt-0.5" />
-              </div>
-              <h3 className="mt-3 font-bold text-gray-100 text-base">{s.label}</h3>
-              <p className="mt-1 text-xs text-gray-500 leading-relaxed">{s.desc}</p>
-            </Link>
-          )
-        })}
+      <div className="grid lg:grid-cols-[1fr_340px] gap-6">
+        <div className="space-y-6">
+          <Card title="Quick actions">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Link to="/admin/appearance" className="card card-hover p-4 flex items-center gap-3"><Palette size={16} className="text-accent-ink" /><span className="text-sm font-semibold">Theme, colours & fonts</span><ArrowRight size={14} className="ml-auto text-muted" /></Link>
+              <Link to="/admin/site" className="card card-hover p-4 flex items-center gap-3"><Globe size={16} className="text-accent-ink" /><span className="text-sm font-semibold">Hero, SEO & sections</span><ArrowRight size={14} className="ml-auto text-muted" /></Link>
+            </div>
+          </Card>
+          <Card title="Content" description="Row counts per section.">
+            <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+              {TILES.map(t => (
+                <Link key={t.key} to={`/admin/${t.key}`} className="card card-hover p-4 group">
+                  <t.icon size={16} className="text-muted group-hover:text-accent-ink transition-colors" />
+                  <p className="mt-3 font-display text-2xl font-extrabold text-fg">{ov?.counts[t.key] ?? '–'}</p>
+                  <p className="text-xs text-muted">{t.label}</p>
+                </Link>
+              ))}
+            </div>
+          </Card>
+        </div>
+        <Card title="Recent activity" description="Audit trail of dashboard actions.">
+          <ul className="space-y-3">
+            {(ov?.recent_activity ?? []).map(a => (
+              <li key={a.id} className="flex items-start gap-3 text-sm">
+                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
+                <div className="min-w-0 flex-1"><p className="font-mono text-xs text-fg truncate">{a.action}{a.target ? ` #${a.target}` : ''}</p><p className="text-[0.68rem] text-muted">{ago(a.created_at)}</p></div>
+              </li>
+            ))}
+            {ov && !ov.recent_activity.length && <li className="text-sm text-muted">No activity yet.</li>}
+          </ul>
+          <Link to="/admin/settings" className="inline-flex items-center gap-1 mt-4 text-xs font-semibold text-accent-ink hover:underline">Full audit log <ArrowRight size={12} /></Link>
+        </Card>
       </div>
     </div>
   )

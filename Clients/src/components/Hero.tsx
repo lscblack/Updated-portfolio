@@ -1,254 +1,199 @@
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { Mail, ArrowRight, Download } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { motion, useMotionValue, useSpring, useTransform, useReducedMotion, useScroll } from 'framer-motion'
+import { ArrowRight, ArrowUpRight, Download, MapPin, ChevronDown } from 'lucide-react'
+import { useSite } from '../contexts/SiteContext'
+import { SocialIcon } from './ui/Brand'
+import Counter from './ui/Counter'
+import Magnetic from './ui/Magnetic'
+import Marquee from './ui/Marquee'
+import Particles from './ui/Particles'
+import Portrait from './ui/Portrait'
+import { Link } from 'react-router-dom'
 
-const PHRASES = [
-  'Building secure, scalable systems.',
-  'Full-Stack · AI/ML · Security-focused.',
-  'Senior Engineer · Kigali, Rwanda.',
-  'Turning complex problems into clean code.',
-]
+const EASE = [0.22, 1, 0.36, 1] as const
 
-export function GithubIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" />
-    </svg>
-  )
-}
-
-export function LinkedinIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-    </svg>
-  )
-}
-
-function Typewriter() {
-  const [phraseIdx, setPhraseIdx] = useState(0)
-  const [displayed, setDisplayed] = useState('')
-  const [deleting, setDeleting] = useState(false)
-  const [showCursor, setShowCursor] = useState(true)
-
+function Typewriter({ phrases }: { phrases: string[] }) {
+  const [i, setI] = useState(0)
+  const [text, setText] = useState('')
+  const [del, setDel] = useState(false)
   useEffect(() => {
-    const id = setInterval(() => setShowCursor(s => !s), 530)
-    return () => clearInterval(id)
-  }, [])
-
-  useEffect(() => {
-    const target = PHRASES[phraseIdx]
+    if (!phrases.length) return
+    const target = phrases[i % phrases.length]
     let t: ReturnType<typeof setTimeout>
-    if (!deleting && displayed.length < target.length) {
-      t = setTimeout(() => setDisplayed(target.slice(0, displayed.length + 1)), 48)
-    } else if (!deleting && displayed.length === target.length) {
-      t = setTimeout(() => setDeleting(true), 2800)
-    } else if (deleting && displayed.length > 0) {
-      t = setTimeout(() => setDisplayed(displayed.slice(0, -1)), 24)
-    } else {
-      setDeleting(false)
-      setPhraseIdx(i => (i + 1) % PHRASES.length)
-    }
+    if (!del && text.length < target.length) t = setTimeout(() => setText(target.slice(0, text.length + 1)), 42)
+    else if (!del && text.length === target.length) t = setTimeout(() => setDel(true), 2400)
+    else if (del && text.length > 0) t = setTimeout(() => setText(text.slice(0, -1)), 20)
+    else { setDel(false); setI(x => (x + 1) % phrases.length) }
     return () => clearTimeout(t)
-  }, [displayed, deleting, phraseIdx])
-
+  }, [text, del, i, phrases])
   return (
-    <span>
-      <span className="text-gray-800 dark:text-gray-200">{displayed}</span>
-      <span className="inline-block w-0.5 h-[1.1em] bg-[#1A56A4] align-middle ml-0.5"
-        style={{ opacity: showCursor ? 1 : 0, transition: 'opacity 0.08s' }} />
+    <span className="font-mono text-sm sm:text-base text-muted">
+      <span className="text-accent-ink">&gt;</span> {text}<span className="cursor-blink inline-block w-[2px] h-[1.1em] bg-accent align-middle ml-0.5" />
     </span>
   )
 }
 
-const METRICS = [
-  { value: '3+', label: 'Years', sub: 'experience' },
-  { value: '15+', label: 'Systems', sub: 'shipped' },
-  { value: '4', label: 'Gov', sub: 'platforms' },
-  { value: '107+', label: 'Repos', sub: 'GitHub' },
-]
+function IdentityCard() {
+  const { data } = useSite()
+  const reduce = useReducedMotion()
+  const ref = useRef<HTMLDivElement>(null)
+  const rx = useMotionValue(0), ry = useMotionValue(0)
+  const srx = useSpring(rx, { stiffness: 120, damping: 16 })
+  const sry = useSpring(ry, { stiffness: 120, damping: 16 })
+  const glowX = useTransform(sry, [-12, 12], ['20%', '80%'])
+  const glowY = useTransform(srx, [12, -12], ['20%', '80%'])
+  const about = data?.about
+  const settings = data?.settings
 
-// Code lines with token arrays
-const CODE_LINES = [
-  [{ t: 'comment', v: '// portfolio/engineer.ts — Loue Sauveur Christian' }],
-  [],
-  [{ t: 'kw', v: 'interface' }, { t: 'sp', v: ' ' }, { t: 'type', v: 'SecureEngineer' }, { t: 'g', v: ' {' }],
-  [{ t: 'sp', v: '  ' }, { t: 'key', v: 'name' }, { t: 'g', v: ':      ' }, { t: 'str', v: '"Loue Sauveur Christian"' }],
-  [{ t: 'sp', v: '  ' }, { t: 'key', v: 'role' }, { t: 'g', v: ':      ' }, { t: 'str', v: '"Senior Software Engineer"' }],
-  [{ t: 'sp', v: '  ' }, { t: 'key', v: 'location' }, { t: 'g', v: ':  ' }, { t: 'str', v: '"Kigali, Rwanda 🇷🇼"' }],
-  [{ t: 'sp', v: '  ' }, { t: 'key', v: 'stack' }, { t: 'g', v: ':     ' }, { t: 'type', v: 'TechStack' }],
-  [{ t: 'sp', v: '  ' }, { t: 'key', v: 'security' }, { t: 'g', v: ':  ' }, { t: 'type', v: 'OWASPCompliant' }],
-  [{ t: 'sp', v: '  ' }, { t: 'key', v: 'openTo' }, { t: 'g', v: ':    ' }, { t: 'type', v: 'Opportunity[]' }],
-  [{ t: 'g', v: '}' }],
-  [],
-  [{ t: 'kw', v: 'const' }, { t: 'sp', v: ' ' }, { t: 'var', v: 'christian' }, { t: 'g', v: ': ' }, { t: 'type', v: 'SecureEngineer' }, { t: 'g', v: ' = {' }],
-  [{ t: 'sp', v: '  ' }, { t: 'key', v: 'stack' }, { t: 'g', v: ': [' }, { t: 'str', v: '"FastAPI"' }, { t: 'g', v: ', ' }, { t: 'str', v: '"React"' }, { t: 'g', v: ', ' }, { t: 'str', v: '"Flutter"' }, { t: 'g', v: ', ' }, { t: 'str', v: '"PostgreSQL"' }, { t: 'g', v: '],' }],
-  [{ t: 'sp', v: '  ' }, { t: 'key', v: 'security' }, { t: 'g', v: ': ' }, { t: 'str', v: '"JWT · MFA · TLS · OWASP · RBAC"' }, { t: 'g', v: ',' }],
-  [{ t: 'sp', v: '  ' }, { t: 'key', v: 'openTo' }, { t: 'g', v: ': [' }, { t: 'str', v: '"MSc Cybersecurity"' }, { t: 'g', v: ', ' }, { t: 'str', v: '"Research"' }, { t: 'g', v: ', ' }, { t: 'str', v: '"Collaboration"' }, { t: 'g', v: '],' }],
-  [{ t: 'g', v: '}' }, { t: 'g', v: ';' }],
-  [],
-  [{ t: 'comment', v: '// Currently protecting: 14M+ citizen land records @ NLA' }],
-  [{ t: 'comment', v: '// Live: amakuru.lands.rw · safeland.rw · pro-rw.netlify.app' }],
-  [],
-  [{ t: 'kw', v: 'export' }, { t: 'sp', v: ' ' }, { t: 'kw', v: 'default' }, { t: 'sp', v: ' ' }, { t: 'var', v: 'christian' }, { t: 'g', v: ';  ' }, { t: 'comment', v: '// always building.' }],
-]
+  const onMove = (e: React.PointerEvent) => {
+    if (reduce || !ref.current || e.pointerType !== 'mouse') return
+    const r = ref.current.getBoundingClientRect()
+    const px = (e.clientX - r.left) / r.width - 0.5
+    const py = (e.clientY - r.top) / r.height - 0.5
+    ry.set(px * 16); rx.set(-py * 16)
+  }
+  const reset = () => { rx.set(0); ry.set(0) }
+  const currently = about?.currently?.slice(0, 3) ?? []
 
-function CodeToken({ t, v }: { t: string; v: string }) {
-  const cls = t === 'comment' ? 'text-gray-500 italic'
-    : t === 'kw' ? 'text-blue-400 font-semibold'
-    : t === 'type' ? 'text-yellow-300'
-    : t === 'key' ? 'text-sky-300'
-    : t === 'str' ? 'text-amber-300'
-    : t === 'var' ? 'text-green-300'
-    : 'text-gray-400'
-  return <span className={cls}>{v}</span>
+  return (
+    <div className="relative [perspective:1400px]">
+      {/* orbit rings */}
+      <div className="absolute -inset-10 pointer-events-none" aria-hidden="true">
+        <div className="absolute inset-0 rounded-full border border-accent/15 animate-spin-slow" />
+        <div className="absolute inset-8 rounded-full border border-dashed border-accent/20 animate-spin-slow [animation-direction:reverse] [animation-duration:34s]" />
+        <span className="absolute top-[8%] left-1/2 w-2 h-2 rounded-full bg-accent shadow-[0_0_20px_var(--accent)]" />
+      </div>
+      <motion.div ref={ref} onPointerMove={onMove} onPointerLeave={reset} style={{ rotateX: srx, rotateY: sry, transformStyle: 'preserve-3d' }}
+        className="relative card p-5 sm:p-6 w-[min(100%,380px)] mx-auto shadow-[0_40px_80px_-30px_rgb(0_0_0/.55)] overflow-hidden">
+        <motion.div className="absolute inset-0 pointer-events-none opacity-40" style={{ background: useTransform([glowX, glowY], ([x, y]) => `radial-gradient(360px circle at ${x} ${y}, color-mix(in oklab, var(--accent) 10%, transparent), transparent 60%)`) }} />
+        <div className="flex items-center justify-between relative">
+          <span className="font-mono text-[0.68rem] tracking-[0.2em] uppercase text-muted">Profile</span>
+          <span className="inline-flex items-center gap-2 text-[0.7rem] font-semibold text-muted">
+            <span className={`w-2 h-2 rounded-full ${settings?.available ? 'bg-emerald-500 pulse-dot' : 'bg-muted'}`} />
+            {settings?.availability_text || 'Available'}
+          </span>
+        </div>
+        <div className="mt-5 flex items-center gap-4 relative" style={{ transform: 'translateZ(30px)' }}>
+          <div className="relative shrink-0">
+            <div className="absolute -inset-1 rounded-[calc(var(--radius)*1.2)] bg-accent opacity-90" />
+            <Portrait images={about?.gallery?.length ? about.gallery : [about?.avatar_url ?? '']} alt={about?.name || 'Portrait'} className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-[var(--radius)] border-2 border-bg" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-display font-extrabold text-lg leading-tight text-fg">{about?.name}</p>
+            <p className="text-sm text-accent-ink font-semibold mt-0.5">{about?.role}</p>
+            <p className="mt-1.5 inline-flex items-center gap-1 text-xs text-muted"><MapPin size={12} /> {about?.location}</p>
+          </div>
+        </div>
+        <div className="mt-5 pt-4 border-t border-line relative" style={{ transform: 'translateZ(20px)' }}>
+          <p className="font-mono text-[0.65rem] tracking-[0.2em] uppercase text-muted mb-2.5">Currently</p>
+          <ul className="space-y-2">
+            {currently.map((c, i) => (
+              <li key={i} className="flex items-start gap-2.5 text-sm">
+                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
+                <span className="leading-snug"><span className="text-fg font-semibold">{c.role}</span><span className="text-muted"> at {c.org}</span></span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        {!!settings?.live_sites?.length && (
+          <div className="mt-4 flex flex-wrap gap-1.5 relative">
+            {settings.live_sites.slice(0, 3).map(s => (
+              <a key={s.url} href={s.url} target="_blank" rel="noreferrer" className="tag tag-neutral hover:border-accent hover:text-accent-ink transition-colors">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />{s.label}
+              </a>
+            ))}
+          </div>
+        )}
+      </motion.div>
+    </div>
+  )
 }
 
 export default function Hero() {
+  const { data } = useSite()
+  const s = data?.settings
+  const about = data?.about
+  const reduce = useReducedMotion()
+  const { scrollY } = useScroll()
+  const yBg = useTransform(scrollY, [0, 600], [0, reduce ? 0 : 120])
+  const opacity = useTransform(scrollY, [0, 500], [1, 0.2])
+
+  const name = about?.name || 'Loue Sauveur Christian'
+  const parts = name.trim().split(' ')
+  const last = parts.length > 1 ? parts.pop()! : ''
+  const first = parts.join(' ')
+  const showParticles = s?.effects?.particles !== false
+  const showMarquee = s?.effects?.marquee !== false && !!s?.marquee?.length
+  const fade = (d: number) => ({ initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.8, delay: d, ease: EASE } })
+
   return (
-    <section id="hero" className="relative min-h-screen flex items-center pt-14 pb-10 overflow-hidden">
-      {/* Top accent bar */}
-      <div className="absolute top-0 left-0 right-0 h-0.75 bg-[#1A56A4]" />
+    <section id="hero" className="relative min-h-[100svh] flex flex-col justify-center overflow-hidden pt-24 pb-10">
+      <motion.div className="absolute inset-0 -z-10" style={{ y: yBg, opacity }} aria-hidden="true">
+        <div className="absolute inset-0 grid-bg" />
+        {showParticles && <Particles />}
+      </motion.div>
 
-      <div className="w-11/12 mx-auto">
-        {/* True 50/50 on desktop so code block gets full space */}
-        <div className="grid lg:grid-cols-2 gap-10 xl:gap-16 items-start lg:items-center">
+      <div className="container-x grid lg:grid-cols-[1.25fr_1fr] gap-12 lg:gap-8 items-center">
+        <div>
+          <motion.div {...fade(0.1)}>
+            <span className="inline-flex items-center gap-2.5 pl-1.5 pr-4 py-1.5 rounded-full border border-line bg-surface/70 backdrop-blur text-xs font-semibold text-muted">
+              <span className="w-6 h-6 rounded-full bg-accent/15 text-accent-ink grid place-items-center"><span className="w-1.5 h-1.5 rounded-full bg-accent pulse-dot" /></span>
+              {s?.hero_kicker || about?.role}
+            </span>
+          </motion.div>
 
-          {/* ── Left column ── */}
-          <div>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0 }}>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 mb-8">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-gray-600 dark:text-gray-400 font-medium text-xs">
-                  Senior SWE · Nexventures &amp; NLA · Kigali
-                </span>
-              </div>
-            </motion.div>
+          <h1 className="h-display mt-6 text-[clamp(2rem,4.6vw,3.6rem)] text-fg">
+            <span className="block overflow-hidden"><motion.span className="block" initial={{ y: '105%' }} animate={{ y: 0 }} transition={{ duration: 0.9, delay: 0.2, ease: EASE }}>{first}</motion.span></span>
+            {last && <span className="block overflow-hidden"><motion.span className="block text-gradient pb-2" initial={{ y: '105%' }} animate={{ y: 0 }} transition={{ duration: 0.9, delay: 0.32, ease: EASE }}>{last}</motion.span></span>}
+          </h1>
 
-            <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}>
-              <h1 className="text-5xl sm:text-6xl xl:text-7xl font-black tracking-tight text-gray-900 dark:text-white leading-[1.02]">
-                Loue Sauveur<br />
-                <span className="text-[#1A56A4]">Christian</span>
-              </h1>
-              <div className="mt-4 w-14 h-0.75 bg-[#1A56A4] rounded-full" />
-            </motion.div>
+          <motion.div {...fade(0.5)} className="mt-5 h-8"><Typewriter phrases={s?.hero_phrases?.length ? s.hero_phrases : ['Building secure, scalable systems.']} /></motion.div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.22 }}>
-              <div className="mt-6 text-lg sm:text-xl font-medium text-gray-500 dark:text-gray-400 font-mono-stack h-8">
-                <Typewriter />
-              </div>
-            </motion.div>
+          <motion.p {...fade(0.6)} className="mt-5 max-w-xl text-muted text-[0.95rem] sm:text-base leading-relaxed text-pretty">{s?.hero_intro}</motion.p>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.32 }}>
-              <p className="mt-5 text-gray-600 dark:text-gray-400 text-base leading-relaxed">
-                Software engineer specialising in secure full-stack systems, AI/ML integration, and
-                government-grade infrastructure. Currently building at{' '}
-                <a href="https://nexventures.rw" target="_blank" rel="noreferrer" className="text-[#1A56A4] font-medium hover:underline">Nexventures</a>
-                {' '}and protecting citizen data at the{' '}
-                <a href="https://amakuru.lands.rw" target="_blank" rel="noreferrer" className="text-[#1A56A4] font-medium hover:underline">National Land Authority</a>.
-              </p>
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.42 }}>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <a href="#projects" className="btn-blue">View My Work <ArrowRight size={15} /></a>
-                <a href="/resume.pdf" className="btn-outline"><Download size={15} /> Download CV</a>
-              </div>
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.52 }}>
-              <div className="mt-10 grid grid-cols-4 gap-3 border-t border-gray-200 dark:border-gray-800 pt-8">
-                {METRICS.map(m => (
-                  <div key={m.label}>
-                    <div className="text-xl font-black text-gray-900 dark:text-white">{m.value}</div>
-                    <div className="text-xs text-[#1A56A4] font-semibold mt-0.5">{m.label}</div>
-                    <div className="text-[10px] text-gray-400 dark:text-gray-500">{m.sub}</div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.6 }}>
-              <div className="mt-6 flex items-center gap-5">
-                {[
-                  { icon: <GithubIcon size={19} />, href: 'https://github.com/lscblack', label: 'GitHub' },
-                  { icon: <LinkedinIcon size={19} />, href: 'https://www.linkedin.com/in/christian-loue-sauveur/', label: 'LinkedIn' },
-                  { icon: <Mail size={19} />, href: 'mailto:louesauveur18@gmail.com', label: 'Email' },
-                ].map(({ icon, href, label }) => (
-                  <a key={label} href={href} target={href.startsWith('http') ? '_blank' : undefined}
-                    rel="noreferrer" aria-label={label}
-                    className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-[#1A56A4] dark:hover:text-[#4A90D9] transition-colors text-sm">
-                    {icon}
-                    <span className="hidden sm:inline">{label}</span>
-                  </a>
-                ))}
-              </div>
-            </motion.div>
-          </div>
-
-          {/* ── Right column — full-width code terminal ── */}
-          <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.65, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}>
-            <div className="bg-gray-950 rounded-xl overflow-hidden border border-gray-800 shadow-2xl">
-
-              {/* Chrome bar */}
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-800 bg-gray-900/80">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-full bg-red-500/80" />
-                  <span className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                  <span className="w-3 h-3 rounded-full bg-green-500/80" />
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-gray-500 text-xs font-mono-stack">engineer.ts</span>
-                  <span className="px-2 py-0.5 text-[10px] rounded bg-blue-900/50 text-blue-300 font-mono-stack">TypeScript</span>
-                </div>
-                <span className="text-gray-600 text-xs font-mono-stack">UTF-8</span>
-              </div>
-
-              {/* Code area */}
-              <div className="p-5 font-mono-stack text-[12.5px] leading-6 select-none overflow-x-auto">
-                {CODE_LINES.map((line, i) => (
-                  <div key={i} className="flex items-start gap-4 min-h-6 hover:bg-white/2 transition-colors rounded-sm px-1">
-                    <span className="text-gray-700 text-right shrink-0 w-5 text-xs mt-0.5 select-none tabular-nums">{i + 1}</span>
-                    <span className="flex-1 min-w-0 break-all">
-                      {line.length === 0
-                        ? <span className="invisible">·</span>
-                        : line.map((tok, j) => <CodeToken key={j} t={tok.t} v={tok.v} />)
-                      }
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Status bar */}
-              <div className="flex items-center justify-between px-5 py-2.5 bg-[#1A56A4]">
-                <span className="text-white/70 text-[11px] font-mono-stack">
-                  Ln {CODE_LINES.length}, Col 1 · TypeScript
-                </span>
-                <span className="flex items-center gap-2 text-white text-[11px] font-mono-stack">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                  Available for opportunities
-                </span>
-                <span className="text-white/50 text-[11px] font-mono-stack">engineer.ts</span>
-              </div>
-            </div>
-
-            {/* Live site badges below terminal */}
-            <div className="mt-4 flex flex-wrap gap-2 justify-start">
-              {[
-                { label: 'amakuru.lands.rw', url: 'https://amakuru.lands.rw' },
-                { label: 'safeland.rw', url: 'https://safeland.rw' },
-                { label: 'pro-rw.netlify.app', url: 'https://pro-rw.netlify.app/' },
-              ].map(s => (
-                <a key={s.label} href={s.url} target="_blank" rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-[11px] font-mono-stack text-gray-500 dark:text-gray-400 hover:border-[#1A56A4] hover:text-[#1A56A4] transition-colors">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                  {s.label}
-                </a>
+          <motion.div {...fade(0.7)} className="mt-8 flex flex-wrap items-center gap-3">
+            <Magnetic><a href={s?.hero_primary_href || '#projects'} className="btn btn-primary">{s?.hero_primary_label || 'View my work'} <ArrowRight size={16} /></a></Magnetic>
+            <Magnetic>{s?.resume_url ? <Link to="/resume" className="btn btn-outline"><Download size={15} /> {s?.hero_secondary_label || 'View resume'}</Link> : <a href={s?.hero_secondary_href || '#contact'} className="btn btn-outline"><Download size={15} /> {s?.hero_secondary_label || 'Download CV'}</a>}</Magnetic>
+            <div className="flex items-center gap-1 ml-1">
+              {(s?.social_links ?? []).map(l => (
+                <a key={l.url} href={l.url} target={l.url.startsWith('http') ? '_blank' : undefined} rel="noreferrer" aria-label={l.label}
+                  className="w-10 h-10 rounded-full grid place-items-center text-muted hover:text-accent-ink hover:bg-surface-2 transition-colors"><SocialIcon name={l.icon} size={17} /></a>
               ))}
             </div>
           </motion.div>
+
+          {!!s?.metrics?.length && (
+            <motion.div {...fade(0.85)} className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-6 border-t border-line pt-8 max-w-2xl">
+              {s.metrics.map(m => (
+                <div key={m.label}>
+                  <div className="font-display text-2xl sm:text-3xl font-extrabold text-fg tracking-tight"><Counter value={m.value} /></div>
+                  <div className="text-sm font-semibold text-accent-ink mt-1">{m.label}</div>
+                  {m.sub && <div className="text-xs text-muted mt-0.5">{m.sub}</div>}
+                </div>
+              ))}
+            </motion.div>
+          )}
         </div>
+
+        <motion.div initial={{ opacity: 0, x: 40, rotate: 2 }} animate={{ opacity: 1, x: 0, rotate: 0 }} transition={{ duration: 1, delay: 0.5, ease: EASE }} className="relative lg:justify-self-end w-full max-w-md">
+          <IdentityCard />
+          <a href="#journey" className="hidden lg:flex absolute -bottom-8 -left-10 items-center gap-2 text-xs font-mono text-muted hover:text-accent-ink transition-colors group">
+            <span className="w-9 h-9 rounded-full border border-line grid place-items-center group-hover:border-accent"><ArrowUpRight size={14} className="rotate-90 group-hover:rotate-[135deg] transition-transform" /></span>
+            Walk through my journey
+          </a>
+        </motion.div>
       </div>
+
+      {showMarquee && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.1, duration: 1 }} className="container-x mt-16">
+          <div className="divider mb-4" />
+          <Marquee items={s!.marquee} />
+        </motion.div>
+      )}
+
+      <motion.a href="#about" aria-label="Scroll" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6 }} className="absolute bottom-5 left-1/2 -translate-x-1/2 text-muted hover:text-accent-ink">
+        <motion.span animate={reduce ? {} : { y: [0, 6, 0] }} transition={{ repeat: Infinity, duration: 1.8 }} className="block"><ChevronDown size={20} /></motion.span>
+      </motion.a>
     </section>
   )
 }

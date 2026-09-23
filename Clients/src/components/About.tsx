@@ -1,152 +1,117 @@
-import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { useScrollInView } from '../hooks/useScrollInView'
-import { GithubIcon, LinkedinIcon } from './Hero'
-import { Mail, Phone } from 'lucide-react'
-import api from '../api/client'
-
-type AboutData = {
-  name: string; role: string; tagline: string
-  bio_para1: string; bio_para2: string; quote: string
-  email: string; phone: string; github: string; linkedin: string
-  location: string; avatar_url: string; open_to: string
-}
-
-const DEFAULTS: AboutData = {
-  name: 'Loue Sauveur Christian',
-  role: 'Senior Software Engineer',
-  tagline: "Building systems that protect people, not just data.",
-  bio_para1: "I'm a software engineer with 3+ years building production systems across Rwanda's government, fintech, and health sectors. I've encrypted national land registry data protecting millions of citizens, integrated AI models into mobile health apps, and shipped payment infrastructure across borders — always with security designed in, not bolted on.",
-  bio_para2: "Currently completing my B.Sc. Software Engineering (ML Specialisation) at the African Leadership University while holding three parallel roles. Applying for MSc Cybersecurity — driven by the conviction that defending digital infrastructure is the next frontier for Africa.",
-  quote: "I believe Africa's digital future needs engineers who build things that are not only functional, but secure and trusted.",
-  email: 'louesauveur18@gmail.com',
-  phone: '+250 790 110 231',
-  github: 'https://github.com/lscblack',
-  linkedin: 'https://www.linkedin.com/in/christian-loue-sauveur/',
-  location: 'Kigali, Rwanda',
-  avatar_url: 'https://avatars.githubusercontent.com/u/141139366?v=4',
-  open_to: 'MSc Cybersecurity programmes, Research Collaborations, Engineering Roles',
-}
-
-const CURRENTLY = [
-  { role: 'Senior Software Engineer', org: 'Nexventures Ltd', dot: 'bg-green-500' },
-  { role: 'Software Engineer Intern', org: 'National Land Authority', dot: 'bg-blue-500' },
-  { role: 'Head Residential Advisor', org: 'African Leadership University', dot: 'bg-violet-500' },
-]
+import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion'
+import { useRef } from 'react'
+import { Mail, Phone, MapPin, Languages, ArrowUpRight } from 'lucide-react'
+import { useSite } from '../contexts/SiteContext'
+import Reveal, { Stagger, Item, Words } from './ui/Reveal'
+import { SocialIcon } from './ui/Brand'
+import { ScrollText } from './ui/ScrollFx'
+import Portrait from './ui/Portrait'
 
 export default function About() {
-  const [ref, inView] = useScrollInView()
-  const [data, setData] = useState<AboutData>(DEFAULTS)
+  const { data, sectionTitle } = useSite()
+  const a = data?.about
+  const s = data?.settings
+  const t = sectionTitle('about', { label: 'about', title: 'Who I am' })
+  const reduce = useReducedMotion()
+  const ref = useRef<HTMLDivElement>(null)
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] })
+  const yImg = useTransform(scrollYProgress, [0, 1], [reduce ? 0 : 50, reduce ? 0 : -50])
+  if (!a) return null
 
-  useEffect(() => {
-    api.get('/api/about')
-      .then(r => setData({ ...DEFAULTS, ...r.data }))
-      .catch(() => {/* use defaults silently */})
-  }, [])
-
-  const openToList = data.open_to.split(',').map(s => s.trim()).filter(Boolean)
+  const contact = [
+    a.email && { icon: <Mail size={14} />, value: a.email, href: `mailto:${a.email}` },
+    a.phone && { icon: <Phone size={14} />, value: a.phone, href: `tel:${a.phone.replace(/\s/g, '')}` },
+    a.location && { icon: <MapPin size={14} />, value: a.location },
+    a.languages?.length && { icon: <Languages size={14} />, value: a.languages.join(' · ') },
+  ].filter(Boolean) as { icon: React.ReactNode; value: string; href?: string }[]
 
   return (
-    <section id="about" className="py-12 sm:py-20">
-      <div className="w-11/12 mx-auto">
-        <div ref={ref} />
+    <section id="about" className="section" ref={ref}>
+      <div className="container-x">
+        <Reveal><p className="section-label">{t.label}</p></Reveal>
+        <h2 className="h-display mt-5 text-[clamp(1.45rem,2.7vw,2.35rem)] max-w-4xl text-fg">
+          <Words text={a.headline} highlight={a.headline_highlight} />
+        </h2>
 
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.5 }}>
-          <p className="section-label">{'{ about_me }'}</p>
-          <h2 className="mt-3 text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-gray-900 dark:text-white leading-[1.05] max-w-4xl">
-            {data.tagline.includes('protect') ? (
-              <>
-                Building systems that
-                <span className="text-[#1A56A4]"> protect people</span>,<br className="hidden sm:block" />
-                {' '}not just data.
-              </>
-            ) : data.tagline}
-          </h2>
-        </motion.div>
-
-        <div className="mt-12 grid lg:grid-cols-[1px_1fr_1fr] gap-0 lg:gap-10">
-          <div className="hidden lg:block bg-gray-200 dark:bg-gray-800" />
-
-          {/* Left: photo + currently + contact */}
-          <motion.div initial={{ opacity: 0, y: 24 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.5, delay: 0.12 }}>
-            <div className="flex flex-col gap-6">
-              <div className="relative w-fit">
-                <img src={data.avatar_url} alt={data.name}
-                  className="w-40 h-40 rounded-xl object-cover border-2 border-[#1A56A4]" loading="lazy" />
-                <span className="absolute -bottom-2 -right-2 px-2 py-0.5 text-[10px] font-bold bg-[#1A56A4] text-white rounded font-mono-stack">
-                  {data.location.split(',')[0]} 🇷🇼
-                </span>
-              </div>
-
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">Currently</p>
-                <div className="space-y-3">
-                  {CURRENTLY.map(c => (
-                    <div key={c.org} className="flex items-start gap-3">
-                      <span className={`w-2 h-2 rounded-full ${c.dot} shrink-0 mt-1.5`} />
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 leading-tight">{c.role}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{c.org}</p>
-                      </div>
-                    </div>
-                  ))}
+        <div className="mt-14 grid lg:grid-cols-[minmax(0,380px)_1fr] gap-12 lg:gap-20 items-start">
+          {/* portrait column */}
+          <div className="relative">
+            <Reveal>
+              <div className="relative rounded-card-lg overflow-hidden card aspect-[4/5] max-w-sm">
+                <motion.div style={{ y: yImg, scale: 1.12 }} className="absolute inset-0"><Portrait images={a.gallery?.length ? a.gallery : [a.avatar_url]} alt={a.name} className="w-full h-full" interval={5200} /></motion.div>
+                <div className="absolute inset-x-0 bottom-0 p-5 bg-gradient-to-t from-black/75 via-black/30 to-transparent text-white">
+                  <p className="font-display font-extrabold text-xl leading-tight">{a.name}</p>
+                  <p className="text-sm text-white/80">{a.role}</p>
                 </div>
+                <span className="absolute top-4 left-4 tag bg-black/40 text-white border-white/20 backdrop-blur"><MapPin size={11} /> {a.location.split(',')[0]}</span>
               </div>
-
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">Contact</p>
-                <div className="space-y-2">
-                  {[
-                    { icon: <Mail size={14} />, value: data.email, href: `mailto:${data.email}` },
-                    { icon: <Phone size={14} />, value: data.phone, href: `tel:${data.phone.replace(/\s/g, '')}` },
-                    { icon: <GithubIcon size={14} />, value: data.github.replace('https://', ''), href: data.github },
-                    { icon: <LinkedinIcon size={14} />, value: data.linkedin.split('/in/')[1]?.replace('/', '') ?? 'LinkedIn', href: data.linkedin },
-                  ].map(item => (
-                    <a key={item.href} href={item.href}
-                      target={item.href.startsWith('http') ? '_blank' : undefined}
-                      rel="noreferrer"
-                      className="flex items-center gap-2.5 text-xs text-gray-600 dark:text-gray-400 hover:text-[#1A56A4] dark:hover:text-[#4A90D9] transition-colors">
-                      <span className="text-[#1A56A4] shrink-0">{item.icon}</span>
-                      {item.value}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Right: bio + stats + open-to */}
-          <motion.div initial={{ opacity: 0, y: 24 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.5, delay: 0.22 }}>
-            <div className="mt-8 lg:mt-0 space-y-5 text-gray-600 dark:text-gray-400 leading-relaxed">
-              <blockquote className="border-l-2 border-[#1A56A4] pl-4 text-base font-medium text-gray-800 dark:text-gray-200 italic leading-relaxed">
-                "{data.quote}"
-              </blockquote>
-              <p>{data.bio_para1}</p>
-              <p>{data.bio_para2}</p>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-gray-200 dark:border-gray-800">
-                {[
-                  { value: '3+', label: 'Years' }, { value: '15+', label: 'Systems' },
-                  { value: '4', label: 'Gov platforms' }, { value: '107+', label: 'GitHub repos' },
-                ].map(s => (
-                  <div key={s.label}>
-                    <div className="text-2xl font-black text-[#1A56A4]">{s.value}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{s.label}</div>
-                  </div>
+            </Reveal>
+            {!!a.facts?.length && (
+              <Stagger className="mt-6 max-w-sm divide-y divide-line border-y border-line">
+                {a.facts.map(f => (
+                  <Item key={f.label} className="flex items-center justify-between py-3 text-sm gap-4">
+                    <span className="text-muted">{f.label}</span><span className="font-semibold text-fg text-right">{f.value}</span>
+                  </Item>
                 ))}
-              </div>
+              </Stagger>
+            )}
+          </div>
 
-              {openToList.length > 0 && (
-                <div className="flex items-start gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900">
-                  <span className="w-2 h-2 rounded-full bg-[#B8860B] shrink-0 mt-2" />
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-semibold text-gray-900 dark:text-gray-100">Open to: </span>
-                    {openToList.join(' · ')}
-                  </p>
-                </div>
-              )}
+          {/* text column */}
+          <div>
+            {a.quote && (
+              <Reveal delay={0.1}>
+                <ScrollText as="blockquote" text={a.quote} className="relative pl-6 border-l-2 border-accent font-display text-lg sm:text-xl font-semibold leading-snug text-fg text-pretty" />
+              </Reveal>
+            )}
+            <div className="mt-8 space-y-5 text-fg text-[0.95rem] sm:text-base leading-relaxed text-pretty">
+              {a.bio.map((p, i) => <ScrollText key={i} text={p} />)}
             </div>
-          </motion.div>
+
+            <div className="mt-10 grid sm:grid-cols-2 gap-8">
+              {!!a.currently?.length && (
+                <Reveal delay={0.2}>
+                  <p className="label">Currently</p>
+                  <ul className="space-y-3">
+                    {a.currently.map((c, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <span className="mt-2 w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
+                        <div className="text-sm leading-snug">
+                          <p className="font-semibold text-fg">{c.role}</p>
+                          {c.url ? <a href={c.url} target="_blank" rel="noreferrer" className="text-muted hover:text-accent-ink inline-flex items-center gap-1">{c.org} <ArrowUpRight size={11} /></a> : <p className="text-muted">{c.org}</p>}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </Reveal>
+              )}
+              <Reveal delay={0.26}>
+                <p className="label">Contact</p>
+                <ul className="space-y-2.5">
+                  {contact.map((c, i) => (
+                    <li key={i} className="text-sm">
+                      {c.href ? <a href={c.href} className="inline-flex items-center gap-2.5 text-muted hover:text-accent-ink transition-colors"><span className="text-accent-ink">{c.icon}</span>{c.value}</a>
+                        : <span className="inline-flex items-center gap-2.5 text-muted"><span className="text-accent-ink">{c.icon}</span>{c.value}</span>}
+                    </li>
+                  ))}
+                  {!!s?.social_links?.length && (
+                    <li className="flex items-center gap-1 pt-1">
+                      {s.social_links.map(l => <a key={l.url} href={l.url} target={l.url.startsWith('http') ? '_blank' : undefined} rel="noreferrer" aria-label={l.label} className="w-9 h-9 rounded-full grid place-items-center text-muted hover:text-accent-ink hover:bg-surface-2 transition-colors"><SocialIcon name={l.icon} size={16} /></a>)}
+                    </li>
+                  )}
+                </ul>
+              </Reveal>
+            </div>
+
+            {!!a.open_to?.length && (
+              <Reveal delay={0.3}>
+                <div className="mt-10 card p-5 flex flex-wrap items-center gap-3">
+                  <span className="text-sm font-semibold text-fg">Open to</span>
+                  {a.open_to.map(o => <span key={o} className="tag">{o}</span>)}
+                </div>
+              </Reveal>
+            )}
+          </div>
         </div>
       </div>
     </section>

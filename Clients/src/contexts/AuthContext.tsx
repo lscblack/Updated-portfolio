@@ -1,53 +1,70 @@
-import { createContext, useContext, useState, useCallback } from 'react'
-import api from '../api/client'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import api, { tokenStore } from '../api/client'
+
+export type AdminInfo = { id: number; email: string; name: string; last_login_at: string | null }
 
 interface AuthCtx {
   token: string | null
-  username: string | null
-  login: (username: string, password: string) => Promise<void>
-  logout: () => void
+  admin: AdminInfo | null
   isAuthenticated: boolean
+  ready: boolean
+  startLogin: (email: string, password: string) => Promise<{ challenge_id: string; delivery: string; expires_in: number; masked_email: string }>
+  verify: (challengeId: string, code: string, remember: boolean) => Promise<void>
+  logout: (everywhere?: boolean) => Promise<void>
+  setSession: (token: string, admin: AdminInfo) => void
 }
 
-const AuthContext = createContext<AuthCtx>({
-  token: null, username: null,
-  login: async () => {}, logout: () => {},
-  isAuthenticated: false,
+const Ctx = createContext<AuthCtx>({
+  token: null, admin: null, isAuthenticated: false, ready: false,
+  startLogin: async () => ({ challenge_id: '', delivery: '', expires_in: 0, masked_email: '' }),
+  verify: async () => {}, logout: async () => {}, setSession: () => {},
 })
 
-const TOKEN_KEY = 'admin_token'
-const USER_KEY = 'admin_user'
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY))
-  const [username, setUsername] = useState<string | null>(() => localStorage.getItem(USER_KEY))
+  const [token, setToken] = useState<string | null>(() => tokenStore.get())
+  const [admin, setAdmin] = useState<AdminInfo | null>(null)
+  const [ready, setReady] = useState(false)
 
-  const login = useCallback(async (usernameInput: string, password: string) => {
-    const res = await api.post('/api/admin/login', { username: usernameInput, password })
-    const t: string = res.data.access_token
-    localStorage.setItem(TOKEN_KEY, t)
-    localStorage.setItem(USER_KEY, usernameInput)
-    setToken(t)
-    setUsername(usernameInput)
-    api.defaults.headers.common['Authorization'] = `Bearer ${t}`
+  useEffect(() => {
+    let cancelled = false
+    if (!token) { setReady(true); return }
+    api.get('/api/admin/auth/me')
+      .then(r => { if (!cancelled) setAdmin(r.data) })
+      .catch(() => { if (!cancelled) { tokenStore.clear(); setToken(null); setAdmin(null) } })
+      .finally(() => { if (!cancelled) setReady(true) })
+    return () => { cancelled = true }
+  }, [token])
+
+  useEffect(() => {
+    const onUnauthorized = () => { setToken(null); setAdmin(null) }
+    window.addEventListener('lsc:unauthorized', onUnauthorized)
+    return () => window.removeEventListener('lsc:unauthorized', onUnauthorized)
   }, [])
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(USER_KEY)
-    setToken(null)
-    setUsername(null)
-    delete api.defaults.headers.common['Authorization']
+  const startLogin = useCallback(async (email: string, password: string) => {
+    const r = await api.post('/api/admin/auth/login', { email, password })
+    return r.data
   }, [])
 
-  // Always attach token to axios if present
-  if (token) api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+  const setSession = useCallback((t: string, a: AdminInfo) => {
+    const remember = !!localStorage.getItem('lsc_admin_token')
+    tokenStore.set(t, remember)
+    setToken(t); setAdmin(a)
+  }, [])
 
-  return (
-    <AuthContext.Provider value={{ token, username, login, logout, isAuthenticated: !!token }}>
-      {children}
-    </AuthContext.Provider>
-  )
+  const verify = useCallback(async (challengeId: string, code: string, remember: boolean) => {
+    const r = await api.post('/api/admin/auth/verify', { challenge_id: challengeId, code })
+    tokenStore.set(r.data.access_token, remember)
+    setToken(r.data.access_token); setAdmin(r.data.admin)
+  }, [])
+
+  const logout = useCallback(async (everywhere = false) => {
+    try { await api.post(everywhere ? '/api/admin/auth/logout-all' : '/api/admin/auth/logout') } catch { /* ignore */ }
+    tokenStore.clear(); setToken(null); setAdmin(null)
+  }, [])
+
+  const value = useMemo(() => ({ token, admin, isAuthenticated: !!token, ready, startLogin, verify, logout, setSession }), [token, admin, ready, startLogin, verify, logout, setSession])
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 
-export const useAuth = () => useContext(AuthContext)
+export const useAuth = () => useContext(Ctx)

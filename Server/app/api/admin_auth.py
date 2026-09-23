@@ -1,91 +1,58 @@
-from fastapi import APIRouter, HTTPException, Depends, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
-from datetime import datetime, timedelta
-from jose import jwt, JWTError
-from passlib.context import CryptContext
+"""Shared dependencies: current admin, client identity, per-route rate limits and audit logging."""
+from __future__ import annotations
+
+from typing import Optional
+
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlmodel import Session
 
-from ..db.session import engine
 from ..core.config import settings
-from ..models.admin import AdminCredentials
+from ..core.security import decode_token, hash_ip
+from ..core.store import rate_hit
+from ..db.session import get_session
+from ..models import AdminUser, AuditLog
 
-router = APIRouter()
-pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
 bearer = HTTPBearer(auto_error=False)
 
-_DEFAULT_PASSWORD = "Chriss@123"
+
+def client_ip(request: Request) -> str:
+    # uvicorn/gunicorn rewrite request.client from X-Forwarded-For when started with proxy headers enabled
+    ip = request.client.host if request.client else "0.0.0.0"
+    xff = request.headers.get("x-real-ip")
+    if xff and ip in ("127.0.0.1", "::1"):
+        ip = xff.strip()
+    return ip
 
 
-def _get_or_create_admin(session: Session) -> AdminCredentials:
-    admin = session.get(AdminCredentials, 1)
-    if not admin:
-        admin = AdminCredentials(hashed_password=pwd.hash(_DEFAULT_PASSWORD))
-        session.add(admin)
-        session.commit()
-        session.refresh(admin)
-    elif not admin.hashed_password:
-        admin.hashed_password = pwd.hash(_DEFAULT_PASSWORD)
-        session.add(admin)
-        session.commit()
-        session.refresh(admin)
+def rate_limited(bucket: str, limit: Optional[int] = None, window: Optional[int] = None):
+    """Dependency factory: `Depends(rate_limited("login"))` — per-IP sliding window."""
+    lim, win = (limit, window) if limit and window else settings.rate_auth
+
+    def dep(request: Request):
+        allowed, _ = rate_hit(f"{bucket}:{client_ip(request)}", lim, win)
+        if not allowed:
+            raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Too many requests — slow down and try again shortly",
+                                headers={"Retry-After": str(win)})
+    return dep
+
+
+def get_current_admin(
+    request: Request,
+    creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer),
+    session: Session = Depends(get_session),
+) -> AdminUser:
+    if not creds or creds.scheme.lower() != "bearer":
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated", headers={"WWW-Authenticate": "Bearer"})
+    payload = decode_token(creds.credentials)
+    if not payload:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired session", headers={"WWW-Authenticate": "Bearer"})
+    admin = session.get(AdminUser, int(payload["sub"]))
+    if not admin or not admin.is_active or admin.token_version != payload.get("ver"):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session revoked — sign in again", headers={"WWW-Authenticate": "Bearer"})
+    request.state.admin = admin
     return admin
 
 
-def _make_token(username: str) -> str:
-    exp = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    return jwt.encode({"sub": username, "exp": exp}, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
-
-
-def require_admin(creds: HTTPAuthorizationCredentials | None = Depends(bearer)):
-    if not creds:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-    try:
-        payload = jwt.decode(creds.credentials, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
-        if not payload.get("sub"):
-            raise ValueError
-    except (JWTError, ValueError):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
-    return payload["sub"]
-
-
-class LoginRequest(BaseModel):
-    username: str
-    password: str
-
-
-class UpdateCredentials(BaseModel):
-    new_username: str | None = None
-    new_password: str | None = None
-    current_password: str
-
-
-@router.post("/admin/login")
-def admin_login(body: LoginRequest):
-    with Session(engine) as s:
-        admin = _get_or_create_admin(s)
-        if body.username != admin.username or not pwd.verify(body.password, admin.hashed_password):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
-        return {"access_token": _make_token(admin.username), "token_type": "bearer"}
-
-
-@router.get("/admin/me")
-def admin_me(username: str = Depends(require_admin)):
-    with Session(engine) as s:
-        admin = s.get(AdminCredentials, 1)
-        return {"username": admin.username if admin else "lscblack"}
-
-
-@router.patch("/admin/credentials")
-def update_credentials(body: UpdateCredentials, _: str = Depends(require_admin)):
-    with Session(engine) as s:
-        admin = _get_or_create_admin(s)
-        if not pwd.verify(body.current_password, admin.hashed_password):
-            raise HTTPException(status_code=400, detail="Current password is incorrect")
-        if body.new_username:
-            admin.username = body.new_username
-        if body.new_password:
-            admin.hashed_password = pwd.hash(body.new_password)
-        s.add(admin)
-        s.commit()
-        return {"ok": True, "username": admin.username}
+def audit(session: Session, request: Request, admin: Optional[AdminUser], action: str, target: str = "", detail: Optional[dict] = None) -> None:
+    session.add(AuditLog(admin_id=admin.id if admin else None, action=action, target=target[:160], detail=detail, ip_hash=hash_ip(client_ip(request))))

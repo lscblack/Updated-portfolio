@@ -1,289 +1,152 @@
-import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { ExternalLink } from 'lucide-react'
-import { useScrollInView } from '../hooks/useScrollInView'
+import { useRef, useState } from 'react'
+import { AnimatePresence, motion, useMotionValueEvent, useReducedMotion, useScroll, useSpring, useTransform } from 'framer-motion'
+import { ArrowUpRight } from 'lucide-react'
+import { useSite } from '../contexts/SiteContext'
+import { Icon } from '../lib/icons'
+import SectionHeader from './ui/SectionHeader'
+import Reveal from './ui/Reveal'
+import { useMinWidth } from './ui/ScrollFx'
+import type { SkillCategory } from '../lib/types'
 
-type Level = 'Expert' | 'Proficient' | 'Familiar'
-type Skill = { name: string; level: Level }
-type SampleProject = { name: string; url?: string }
+function levelLabel(l: number) { return l >= 85 ? 'Expert' : l >= 65 ? 'Proficient' : 'Familiar' }
 
-const PCT: Record<Level, number> = { Expert: 90, Proficient: 70, Familiar: 45 }
-const LEVEL_COLOR: Record<Level, string> = {
-  Expert: 'text-[#1A56A4] font-semibold',
-  Proficient: 'text-gray-500 dark:text-gray-400',
-  Familiar: 'text-gray-400 dark:text-gray-500',
+function Bar({ name, level, index }: { name: string; level: number; index: number }) {
+  const reduce = useReducedMotion()
+  return (
+    <div className="py-2.5">
+      <div className="flex justify-between items-baseline mb-1.5 gap-3">
+        <span className="text-sm font-medium text-fg truncate">{name}</span>
+        <span className="font-mono text-[0.68rem] text-muted shrink-0">{levelLabel(level)} <span className="text-accent-ink">{level}%</span></span>
+      </div>
+      <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
+        <motion.div className="h-full rounded-full bg-accent"
+          initial={{ width: 0 }} animate={{ width: `${Math.max(2, Math.min(100, level))}%` }} transition={{ duration: reduce ? 0 : 0.9, delay: index * 0.04, ease: [0.22, 1, 0.36, 1] }} />
+      </div>
+    </div>
+  )
 }
 
-const TABS: { label: string; skills: Skill[]; projects: SampleProject[] }[] = [
-  {
-    label: 'Security & DevOps',
-    skills: [
-      { name: 'OWASP Top 10', level: 'Expert' },
-      { name: 'JWT / OAuth 2.0', level: 'Expert' },
-      { name: 'TLS / HTTPS', level: 'Expert' },
-      { name: 'MFA / TOTP (Google Auth)', level: 'Expert' },
-      { name: 'Role-Based Access Control', level: 'Expert' },
-      { name: 'Linux Server Hardening', level: 'Proficient' },
-      { name: 'Docker', level: 'Proficient' },
-      { name: 'CI/CD Pipelines', level: 'Proficient' },
-      { name: 'AWS EC2', level: 'Proficient' },
-      { name: 'DigitalOcean', level: 'Proficient' },
-      { name: 'Secrets Management', level: 'Proficient' },
-      { name: 'Arduino IoT', level: 'Familiar' },
-    ],
-    projects: [
-      { name: 'NLA Land Information Portal', url: 'https://amakuru.lands.rw' },
-      { name: 'Afiacare Health System' },
-      { name: 'Afriton Cross-Border Payment' },
-      { name: 'SafeLand Rwanda', url: 'https://safeland.rw' },
-      { name: 'Nexventures production APIs' },
-    ],
-  },
-  {
-    label: 'Backend',
-    skills: [
-      { name: 'FastAPI', level: 'Expert' },
-      { name: 'REST API Design', level: 'Expert' },
-      { name: 'Django', level: 'Proficient' },
-      { name: 'Express.js', level: 'Proficient' },
-      { name: 'Node.js', level: 'Proficient' },
-      { name: 'PHP', level: 'Proficient' },
-      { name: 'GraphQL', level: 'Familiar' },
-    ],
-    projects: [
-      { name: 'Afiacare Health System (FastAPI)' },
-      { name: 'Afriton Payment API (FastAPI)' },
-      { name: 'BookHub Backend', url: 'https://github.com/lscblack/BookHub_Backend_fastapi' },
-      { name: 'Course Management System', url: 'https://github.com/lscblack/course_management_system_Nodejs_mysql_redis' },
-      { name: 'EcoTrack Rwanda (Django)' },
-      { name: 'Youth Home Platform (PHP)' },
-    ],
-  },
-  {
-    label: 'Frontend',
-    skills: [
-      { name: 'React.js', level: 'Expert' },
-      { name: 'TypeScript', level: 'Expert' },
-      { name: 'Tailwind CSS', level: 'Expert' },
-      { name: 'Redux Toolkit', level: 'Expert' },
-      { name: 'Vite.js', level: 'Expert' },
-      { name: 'Vue.js', level: 'Proficient' },
-      { name: 'Framer Motion', level: 'Proficient' },
-      { name: 'Bootstrap', level: 'Proficient' },
-    ],
-    projects: [
-      { name: 'NLA Land Portal (React + Redux)', url: 'https://amakuru.lands.rw' },
-      { name: 'SafeLand Rwanda', url: 'https://safeland.rw' },
-      { name: 'EcoTrack Rwanda' },
-      { name: 'Prov-Rwanda (React + Firebase)' },
-      { name: 'This portfolio (React + Framer Motion)' },
-    ],
-  },
-  {
-    label: 'Mobile',
-    skills: [
-      { name: 'Flutter', level: 'Proficient' },
-      { name: 'React Native', level: 'Proficient' },
-      { name: 'Firebase', level: 'Proficient' },
-      { name: 'Expo', level: 'Proficient' },
-      { name: 'Android / Java WebView', level: 'Familiar' },
-    ],
-    projects: [
-      { name: 'Fam Care App (Flutter)', url: 'https://github.com/lscblack/Famcare' },
-      { name: 'Medical Insurance Estimator (Flutter)' },
-      { name: 'Cholare La Lumière (React Native)' },
-      { name: 'Youth Home Android (Java WebView)' },
-    ],
-  },
-  {
-    label: 'AI / ML',
-    skills: [
-      { name: 'Pandas', level: 'Expert' },
-      { name: 'Jupyter Notebook', level: 'Expert' },
-      { name: 'TensorFlow', level: 'Proficient' },
-      { name: 'scikit-learn', level: 'Proficient' },
-      { name: 'Deep Learning / CNN', level: 'Proficient' },
-      { name: 'NLP', level: 'Familiar' },
-      { name: 'Adversarial ML Awareness', level: 'Familiar' },
-    ],
-    projects: [
-      { name: 'RwandaCropGuard (TensorFlow CNN)' },
-      { name: 'Urban Sound Classifier', url: 'https://github.com/lscblack/Urban_Voice_classifier' },
-      { name: 'AfriTon Chatbot (NLP)', url: 'https://github.com/lscblack/AfriTon-chatbot' },
-      { name: 'Time-Series Forecasting', url: 'https://github.com/lscblack/Time-Series-Forecasting' },
-      { name: 'Medical Insurance Estimator (ML)' },
-    ],
-  },
-  {
-    label: 'Languages',
-    skills: [
-      { name: 'Python', level: 'Expert' },
-      { name: 'JavaScript', level: 'Expert' },
-      { name: 'TypeScript', level: 'Expert' },
-      { name: 'SQL', level: 'Expert' },
-      { name: 'Shell Scripting', level: 'Proficient' },
-      { name: 'PHP', level: 'Proficient' },
-      { name: 'Dart', level: 'Proficient' },
-      { name: 'C / C++', level: 'Familiar' },
-      { name: 'Java', level: 'Familiar' },
-    ],
-    projects: [
-      { name: 'Python: Afiacare, ML pipeline, EcoTrack' },
-      { name: 'TypeScript: NLA Portal, SafeLand', url: 'https://github.com/lscblack/Safe_Land_Rwanda' },
-      { name: 'Dart: Fam Care App', url: 'https://github.com/lscblack/Famcare' },
-      { name: 'PHP: Youth Home, CODEJIKA projects' },
-      { name: 'Java: Android WebView app (Play Store)' },
-    ],
-  },
-  {
-    label: 'Databases',
-    skills: [
-      { name: 'PostgreSQL', level: 'Expert' },
-      { name: 'MySQL', level: 'Expert' },
-      { name: 'MongoDB', level: 'Proficient' },
-      { name: 'Firebase Firestore', level: 'Proficient' },
-      { name: 'Redis', level: 'Familiar' },
-    ],
-    projects: [
-      { name: 'PostgreSQL: Afiacare, Afriton, NLA Portal' },
-      { name: 'MySQL: Course Mgmt', url: 'https://github.com/lscblack/course_management_system_Nodejs_mysql_redis' },
-      { name: 'MongoDB: Inventory System' },
-      { name: 'Firebase: Prov-Rwanda, Fam Care, Cholare' },
-    ],
-  },
-  {
-    label: 'Tools',
-    skills: [
-      { name: 'Git / GitHub', level: 'Expert' },
-      { name: 'Postman', level: 'Expert' },
-      { name: 'Linux CLI', level: 'Expert' },
-      { name: 'VSCode', level: 'Expert' },
-      { name: 'GitLab', level: 'Proficient' },
-      { name: 'Figma', level: 'Proficient' },
-      { name: 'Google Colab', level: 'Proficient' },
-    ],
-    projects: [
-      { name: 'GitHub: 107+ repositories', url: 'https://github.com/lscblack' },
-      { name: 'Figma: NLA Portal UI/UX design' },
-      { name: 'Postman: API testing — Afiacare, Afriton' },
-      { name: 'Linux: NLA server deployment & hardening' },
-    ],
-  },
-]
 
-function SkillBar({ name, level, index }: { name: string; level: Level; index: number }) {
-  const [visible, setVisible] = useState(false)
-  const setRef = (el: HTMLDivElement | null) => {
-    if (!el) return
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setVisible(true) }, { rootMargin: '-20px' })
-    obs.observe(el)
-  }
-  const pct = PCT[level]
-
+/* ── desktop: pinned stage, categories slide horizontally with scroll ─────── */
+function Panel({ cat, active }: { cat: SkillCategory; active: boolean }) {
   return (
-    <div ref={setRef} className="py-2.5 border-b border-gray-100 dark:border-gray-800 last:border-0">
-      <div className="flex justify-between items-center mb-2">
-        <span className="text-sm text-gray-800 dark:text-gray-200 font-medium">{name}</span>
-        <span className={`text-[11px] tabular-nums font-mono-stack ${LEVEL_COLOR[level]}`}>{pct}%</span>
+    <motion.article animate={{ scale: active ? 1 : 0.94, opacity: active ? 1 : 0.55 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      className="card p-7 xl:p-8 w-[min(62vw,880px)] shrink-0 grid grid-cols-[3fr_2fr] gap-8 max-h-[70vh] overflow-hidden">
+      <div>
+        <div className="flex items-center gap-3 mb-5">
+          <span className="w-11 h-11 rounded-full bg-accent text-accent-fg grid place-items-center"><Icon name={cat.icon} size={18} /></span>
+          <div><h3 className="font-display font-extrabold text-xl text-fg leading-tight">{cat.name}</h3><p className="font-mono text-[0.68rem] text-muted">{cat.skills.length} skills</p></div>
+        </div>
+        <div className="grid grid-cols-2 gap-x-8">
+          {cat.skills.map((sk, i) => active ? <Bar key={`${cat.id}-${sk.name}`} name={sk.name} level={Number(sk.level) || 0} index={i} /> : <div key={sk.name} className="py-2.5"><div className="flex justify-between mb-1.5"><span className="text-sm text-fg">{sk.name}</span></div><div className="h-1.5 rounded-full bg-surface-2" /></div>)}
+        </div>
       </div>
-      <div className="h-1 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
-        <motion.div
-          className="h-full rounded-full bg-[#1A56A4]"
-          initial={{ width: 0 }}
-          animate={visible ? { width: `${pct}%` } : { width: 0 }}
-          transition={{ duration: 0.7, delay: index * 0.035, ease: 'easeOut' }}
-        />
+      <div className="border-l border-line pl-7">
+        <p className="font-mono text-[0.7rem] tracking-[0.18em] uppercase mb-4" style={{ color: 'var(--accent-2)' }}>Applied in</p>
+        <ul className="space-y-3">
+          {cat.applied.map((p, i) => (
+            <li key={i} className="flex items-start gap-3 text-sm">
+              <span className="mt-2 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--accent-2)' }} />
+              {p.url ? <a href={p.url} target="_blank" rel="noreferrer" className="text-fg hover:text-accent-ink inline-flex items-center gap-1 group">{p.name}<ArrowUpRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" /></a> : <span className="text-muted">{p.name}</span>}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </motion.article>
+  )
+}
+
+function HorizontalStage({ cats, label, title, subtitle }: { cats: SkillCategory[]; label: string; title: string; subtitle: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const n = cats.length
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] })
+  const p = useSpring(scrollYProgress, { stiffness: 90, damping: 26 })
+  const x = useTransform(p, v => `calc(${-v * (n - 1)} * (min(62vw, 880px) + 1.5rem))`)
+  const [active, setActive] = useState(0)
+  useMotionValueEvent(p, 'change', v => setActive(Math.round(v * (n - 1))))
+  const jump = (i: number) => { const el = ref.current; if (!el) return; window.scrollTo({ top: el.offsetTop + (i / (n - 1)) * (el.offsetHeight - window.innerHeight), behavior: 'smooth' }) }
+  return (
+    <div ref={ref} style={{ height: `${100 + n * 55}vh` }} className="relative">
+      <div className="sticky top-0 h-screen overflow-hidden flex flex-col justify-center">
+        <div className="container-x flex items-end justify-between gap-6 mb-6">
+          <SectionHeader label={label} title={title} subtitle={subtitle} />
+          <div className="hidden xl:flex items-center gap-2 shrink-0">
+            {cats.map((c, i) => (
+              <button key={c.id ?? i} onClick={() => jump(i)} className={`inline-flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold border transition-colors ${active === i ? 'bg-accent text-accent-fg border-accent' : 'text-muted border-line hover:text-fg'}`}><Icon name={c.icon} size={13} />{c.name}</button>
+            ))}
+          </div>
+        </div>
+        <div className="w-11/12 mx-auto">
+          <motion.div style={{ x }} className="flex gap-6 will-change-transform">
+            {cats.map((c, i) => <Panel key={c.id ?? i} cat={c} active={i === active} />)}
+          </motion.div>
+        </div>
+        <div className="container-x mt-6 flex items-center gap-3">
+          <span className="font-mono text-xs text-muted tabular-nums">{String(active + 1).padStart(2, '0')} / {String(n).padStart(2, '0')}</span>
+          <div className="relative h-px flex-1 bg-line"><motion.div className="absolute inset-y-0 left-0 bg-accent origin-left w-full" style={{ scaleX: p }} /></div>
+          <span className="font-mono text-[0.65rem] text-muted uppercase tracking-widest">scroll</span>
+        </div>
       </div>
     </div>
   )
 }
 
 export default function Skills() {
+  const { data, sectionTitle } = useSite()
+  const cats = (data?.skills ?? []).filter(c => c.visible !== false)
+  const t = sectionTitle('skills', { label: 'skills', title: 'What I work with', subtitle: '' })
   const [tab, setTab] = useState(0)
-  const [ref, inView] = useScrollInView()
+  const desktop = useMinWidth(1024)
+  const reduce = useReducedMotion()
+  if (!cats.length) return null
+  const cat = cats[Math.min(tab, cats.length - 1)]
+
+  if (desktop && !reduce && cats.length > 1) {
+    return <section id="skills" className="relative"><HorizontalStage cats={cats} label={t.label} title={t.title} subtitle={t.subtitle} /></section>
+  }
 
   return (
-    <section id="skills" className="py-12 sm:py-20 bg-gray-50 dark:bg-gray-900/50">
-      <div className="w-11/12 mx-auto">
-        <div ref={ref} />
+    <section id="skills" className="section">
+      <div className="container-x">
+        <SectionHeader label={t.label} title={t.title} subtitle={t.subtitle} />
 
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.5 }}>
-          <p className="section-label">{'< skills />'}</p>
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
-            Technical Skills
-          </h2>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            Select a category — proficiency bars + the real projects where each skill was applied.
-          </p>
-        </motion.div>
-
-        {/* Tab strip */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.5, delay: 0.1 }}>
-          <div className="mt-8 flex flex-wrap gap-2">
-            {TABS.map((t, i) => (
-              <button key={t.label} onClick={() => setTab(i)}
-                className={`px-4 py-2 rounded-md text-sm font-medium border transition-all ${
-                  tab === i
-                    ? 'bg-[#1A56A4] text-white border-[#1A56A4] shadow-sm shadow-blue-200 dark:shadow-none'
-                    : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-[#1A56A4] hover:text-[#1A56A4] dark:hover:text-[#4A90D9]'
-                }`}>
-                {t.label}
+        <Reveal delay={0.15}>
+          <div className="mt-10 flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap [scrollbar-width:none]" role="tablist">
+            {cats.map((c, i) => (
+              <button key={c.id ?? i} role="tab" aria-selected={tab === i} onClick={() => setTab(i)}
+                className={`relative shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold border transition-colors ${tab === i ? 'text-accent-fg border-transparent' : 'text-muted border-line hover:text-fg hover:border-muted'}`}>
+                {tab === i && <motion.span layoutId="skill-tab" className="absolute inset-0 rounded-full bg-accent" transition={{ type: 'spring', stiffness: 400, damping: 34 }} />}
+                <span className="relative inline-flex items-center gap-2"><Icon name={c.icon} size={14} />{c.name}</span>
               </button>
             ))}
           </div>
-        </motion.div>
+        </Reveal>
 
-        {/* Content: 2-col skill bars (left) + projects (right) */}
-        <motion.div key={tab} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }}>
-          <div className="mt-6 grid lg:grid-cols-[3fr_2fr] gap-5 items-start">
-
-            {/* Left: skill bars */}
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
-              <div className="flex items-center justify-between mb-5">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-[#1A56A4]">
-                  {TABS[tab].label}
-                </p>
-                <div className="flex items-center gap-4 text-[10px] text-gray-400 dark:text-gray-600">
-                  <span className="flex items-center gap-1"><span className="w-2 h-0.5 rounded-full bg-[#1A56A4] inline-block" />Expert</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-0.5 rounded-full bg-[#1A56A4] opacity-55 inline-block" />Proficient</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-0.5 rounded-full bg-[#1A56A4] opacity-30 inline-block" />Familiar</span>
-                </div>
+        <AnimatePresence mode="wait">
+          <motion.div key={cat.id ?? tab} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}
+            className="mt-6 grid lg:grid-cols-[3fr_2fr] gap-5 items-start">
+            <div className="card p-6 sm:p-7">
+              <div className="flex items-center justify-between mb-4">
+                <p className="inline-flex items-center gap-2 font-mono text-[0.7rem] tracking-[0.18em] uppercase text-accent-ink"><Icon name={cat.icon} size={14} />{cat.name}</p>
+                <span className="font-mono text-xs text-muted">{cat.skills.length} skills</span>
               </div>
               <div className="grid sm:grid-cols-2 gap-x-10">
-                {TABS[tab].skills.map((s, i) => (
-                  <SkillBar key={`${tab}-${s.name}`} name={s.name} level={s.level} index={i} />
-                ))}
+                {cat.skills.map((s, i) => <Bar key={`${cat.id}-${s.name}`} name={s.name} level={Number(s.level) || 0} index={i} />)}
               </div>
             </div>
-
-            {/* Right: projects used in */}
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-[#B8860B] mb-5">
-                Applied in
-              </p>
+            <div className="card p-6 sm:p-7 bg-surface-2/50">
+              <p className="font-mono text-[0.7rem] tracking-[0.18em] uppercase text-accent-2 mb-4" style={{ color: 'var(--accent-2)' }}>Applied in</p>
               <ul className="space-y-3">
-                {TABS[tab].projects.map(p => (
-                  <li key={p.name}>
-                    {p.url ? (
-                      <a href={p.url} target="_blank" rel="noreferrer"
-                        className="flex items-start gap-2.5 text-sm text-[#1A56A4] hover:underline group">
-                        <span className="text-[#B8860B] shrink-0 font-bold mt-0.5">›</span>
-                        <span>{p.name}</span>
-                        <ExternalLink size={10} className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                      </a>
-                    ) : (
-                      <div className="flex items-start gap-2.5 text-sm text-gray-700 dark:text-gray-300">
-                        <span className="text-gray-300 dark:text-gray-600 shrink-0 mt-0.5">›</span>
-                        <span>{p.name}</span>
-                      </div>
-                    )}
+                {cat.applied.map((p, i) => (
+                  <li key={i} className="flex items-start gap-3 text-sm">
+                    <span className="mt-2 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--accent-2)' }} />
+                    {p.url ? <a href={p.url} target="_blank" rel="noreferrer" className="text-fg hover:text-accent-ink inline-flex items-center gap-1 group">{p.name}<ArrowUpRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" /></a> : <span className="text-muted">{p.name}</span>}
                   </li>
                 ))}
               </ul>
             </div>
-
-          </div>
-        </motion.div>
+          </motion.div>
+        </AnimatePresence>
       </div>
     </section>
   )

@@ -1,153 +1,64 @@
-import { motion } from 'framer-motion'
-import { ExternalLink } from 'lucide-react'
-import { useScrollInView } from '../hooks/useScrollInView'
-
-const TIMELINE = [
-  {
-    period: '2020 – 2022',
-    kind: 'diploma',
-    title: 'A2 National Diploma',
-    subtitle: 'Computer Science & Mathematics',
-    org: 'Rwanda Education Board',
-    location: 'Kigali, Rwanda',
-    note: 'Advanced Level — top secondary qualification in Rwanda.',
-    tags: ['C++', 'Python', 'Algorithms', 'Mathematics', 'Databases'],
-    url: null,
-    grade: null,
-  },
-  {
-    period: '2023 – 2026',
-    kind: 'degree',
-    title: 'B.Sc. Software Engineering',
-    subtitle: 'Machine Learning Specialisation',
-    org: 'African Leadership University',
-    location: 'Kigali, Rwanda',
-    note: 'Expected May 2026. Coursework: Linux, Web Dev & Security, Databases, Algorithms, Mobile Dev, Machine Learning.',
-    tags: ['Linux', 'Security', 'Databases', 'Algorithms', 'Mobile Dev', 'ML'],
-    url: null,
-    grade: null,
-  },
-]
-
-const CERTS = [
-  { title: 'Data Science Short Course', issuer: 'Stanford University (Prof. Jennifer Widom)', grade: null, url: 'https://drive.google.com/file/d/1KwNCV12SIs_1YLbxTr1XPv8uEDlAP_TZ/view?usp=sharing' },
-  { title: 'Applied Unsupervised Learning in Python', issuer: 'University of Michigan', grade: '100%', url: 'https://drive.google.com/file/d/1FoE-09df7BoG2_qUINQgo8fcjKSwHLBk/view?usp=drive_link' },
-  { title: 'Flutter & Dart: iOS, Android & Mobile Apps', issuer: 'IBM', grade: '100%', url: 'https://drive.google.com/file/d/16WenQo_bBnnxZHUc2zN4tYELxgib-iog/view?usp=drive_link' },
-  { title: 'Getting Started with R', issuer: 'Coursera', grade: '100%', url: 'https://drive.google.com/file/d/19CS0P2JG-KsCkCZnvkDPjA_h3XZO2L2b/view?usp=sharing' },
-  { title: 'Introduction to Academic Writing', issuer: 'O.P. Jindal Global University', grade: '100%', url: 'https://drive.google.com/file/d/1oBwwj2uTWI7YblQlvSiddDC4HxsY-P5O/view?usp=sharing' },
-  { title: 'Computer Science (High School)', issuer: 'National Curriculum', grade: null, url: null },
-]
+import { useRef } from 'react'
+import { ArrowUpRight, Award, MapPin } from 'lucide-react'
+import { useSite } from '../contexts/SiteContext'
+import SectionHeader from './ui/SectionHeader'
+import Reveal, { Stagger, Item } from './ui/Reveal'
+import { ScrollRail, SlideIn } from './ui/ScrollFx'
 
 export default function Education() {
-  const [ref, inView] = useScrollInView()
+  const { data, sectionTitle } = useSite()
+  const edu = (data?.education ?? []).filter(e => e.visible !== false)
+  const certs = (data?.certifications ?? []).filter(c => c.visible !== false)
+  const t = sectionTitle('education', { label: 'education', title: 'Education & certifications', subtitle: '' })
+  const railRef = useRef<HTMLDivElement>(null)
+  if (!edu.length && !certs.length) return null
 
   return (
-    <section id="education" className="py-12 sm:py-20 bg-gray-50 dark:bg-gray-900/50">
-      <div className="w-11/12 mx-auto">
-        <div ref={ref} />
-
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.5 }}>
-          <p className="section-label">{'{ education }'}</p>
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
-            Education &amp; Certifications
-          </h2>
-        </motion.div>
-
-        <div className="mt-12 grid lg:grid-cols-[1fr_1px_1fr] gap-0">
-
-          {/* ── Left: Academic qualifications ── */}
-          <div className="pr-0 lg:pr-10">
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={inView ? { opacity: 1 } : {}}
-              transition={{ delay: 0.1 }}
-              className="text-[11px] font-bold uppercase tracking-widest text-[#1A56A4] mb-6"
-            >
-              Qualifications
-            </motion.p>
-
-            <div className="space-y-8">
-              {TIMELINE.map((item, i) => (
-                <motion.div
-                  key={item.title}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={inView ? { opacity: 1, x: 0 } : {}}
-                  transition={{ duration: 0.5, delay: 0.15 + i * 0.1 }}
-                >
-                  <div className="relative pl-6 border-l-2 border-gray-200 dark:border-gray-700 hover:border-[#1A56A4] transition-colors group">
-                    {/* Dot */}
-                    <div className="absolute -left-1.25 top-1.5 w-2.5 h-2.5 rounded-full border-2 border-[#1A56A4] bg-white dark:bg-gray-950 group-hover:bg-[#1A56A4] transition-colors" />
-
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <span className="text-[11px] font-mono-stack text-gray-400 dark:text-gray-500">{item.period}</span>
-                        <h3 className="mt-0.5 font-black text-gray-900 dark:text-white text-lg leading-tight">{item.title}</h3>
-                        <p className="text-[#1A56A4] font-semibold text-sm mt-0.5">{item.subtitle}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{item.org} · {item.location}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">{item.note}</p>
-                        <div className="mt-3 flex flex-wrap gap-1.5">
-                          {item.tags.map(t => <span key={t} className="tag">{t}</span>)}
-                        </div>
-                      </div>
-                      {item.kind === 'degree' && (
-                        <div className="shrink-0 text-right">
-                          <span className="inline-block px-2 py-1 text-[10px] font-bold bg-[#1A56A4] text-white rounded">
-                            In Progress
-                          </span>
-                        </div>
-                      )}
+    <section id="education" className="section">
+      <div className="container-x">
+        <SectionHeader label={t.label} title={t.title} subtitle={t.subtitle} />
+        <div className="mt-12 grid lg:grid-cols-[1.1fr_1fr] gap-12 lg:gap-16">
+          <div>
+            <Reveal><p className="label mb-6">Qualifications</p></Reveal>
+            <div ref={railRef} className="relative pl-6 sm:pl-8"><ScrollRail target={railRef} className="left-0" />
+            <Stagger className="relative space-y-6">
+              {edu.map((e, i) => (
+                <Item key={e.id ?? i} as="article" className="card card-hover p-6 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-accent" />
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <span className="font-mono text-xs text-accent-ink">{e.period}</span>
+                      <h3 className="font-display font-extrabold text-xl text-fg mt-1 leading-tight">{e.title}</h3>
+                      {e.subtitle && <p className="text-sm font-semibold text-fg/80 mt-0.5">{e.subtitle}</p>}
+                      <p className="text-sm text-muted mt-1">{e.org}{e.location && <span className="inline-flex items-center gap-1 ml-2"><MapPin size={11} />{e.location}</span>}</p>
                     </div>
+                    {e.status && <span className={`tag shrink-0 ${/progress/i.test(e.status) ? '' : 'tag-neutral'}`}>{e.status}</span>}
                   </div>
-                </motion.div>
+                  {e.note && <p className="mt-3 text-sm text-muted leading-relaxed">{e.note}</p>}
+                  <div className="mt-4 flex flex-wrap gap-1.5">{e.tags.map(tg => <span key={tg} className="tag tag-neutral">{tg}</span>)}</div>
+                  {e.url && <a href={e.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 mt-4 text-xs font-semibold text-accent-ink hover:underline">View <ArrowUpRight size={12} /></a>}
+                </Item>
               ))}
+            </Stagger>
             </div>
           </div>
-
-          {/* Divider */}
-          <div className="hidden lg:block bg-gray-200 dark:bg-gray-700 w-px mx-0" />
-
-          {/* ── Right: Certifications ── */}
-          <div className="pl-0 lg:pl-10 mt-10 lg:mt-0">
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={inView ? { opacity: 1 } : {}}
-              transition={{ delay: 0.15 }}
-              className="text-[11px] font-bold uppercase tracking-widest text-[#1A56A4] mb-6"
-            >
-              Certifications &amp; Courses
-            </motion.p>
-
-            <div className="space-y-0 divide-y divide-gray-200 dark:divide-gray-700">
-              {CERTS.map((cert, i) => (
-                <motion.div
-                  key={cert.title}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={inView ? { opacity: 1, x: 0 } : {}}
-                  transition={{ duration: 0.45, delay: 0.2 + i * 0.07 }}
-                >
-                  <div className="py-4 flex items-start justify-between gap-3 group hover:bg-white dark:hover:bg-gray-800/40 transition-colors -mx-3 px-3 rounded-lg">
+          <div>
+            <Reveal><p className="label mb-6">Certifications & courses</p></Reveal>
+            <div className="divide-y divide-line border-y border-line overflow-x-clip">
+              {certs.map((c, i) => (
+                <SlideIn key={c.id ?? i} index={i}>
+                  <a href={c.url || undefined} target={c.url ? '_blank' : undefined} rel="noreferrer" className="group flex items-start gap-4 py-4 -mx-3 px-3 rounded-card hover:bg-surface transition-colors">
+                    <span className="mt-0.5 w-9 h-9 rounded-full bg-surface-2 grid place-items-center text-accent-ink shrink-0 group-hover:bg-accent group-hover:text-accent-fg transition-colors"><Award size={15} /></span>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-sm text-gray-900 dark:text-gray-100 leading-tight">{cert.title}</p>
-                        {cert.grade && (
-                          <span className="shrink-0 px-1.5 py-0.5 text-[10px] font-black rounded bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800">
-                            {cert.grade}
-                          </span>
-                        )}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-sm text-fg leading-tight group-hover:text-accent-ink transition-colors">{c.title}</p>
+                        {c.grade && <span className="tag">{c.grade}</span>}
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{cert.issuer}</p>
+                      <p className="text-xs text-muted mt-0.5">{c.issuer}{c.year && <span className="font-mono ml-2">{c.year}</span>}</p>
                     </div>
-                    {cert.url ? (
-                      <a href={cert.url} target="_blank" rel="noreferrer"
-                        className="shrink-0 mt-0.5 text-gray-300 dark:text-gray-600 group-hover:text-[#1A56A4] dark:group-hover:text-[#4A90D9] transition-colors"
-                        aria-label="View certificate">
-                        <ExternalLink size={14} />
-                      </a>
-                    ) : (
-                      <span className="shrink-0 mt-0.5 w-3.5" />
-                    )}
-                  </div>
-                </motion.div>
+                    {c.url && <ArrowUpRight size={14} className="text-muted group-hover:text-accent-ink transition-colors mt-1 shrink-0" />}
+                  </a>
+                </SlideIn>
               ))}
             </div>
           </div>

@@ -1,50 +1,64 @@
+import { useMemo } from 'react'
 import ScrollProgress from '../components/ScrollProgress'
 import Navbar from '../components/Navbar'
 import Hero from '../components/Hero'
 import About from '../components/About'
+import Journey from '../components/Journey'
 import Skills from '../components/Skills'
 import Experience from '../components/Experience'
 import Projects from '../components/Projects'
+import Education from '../components/Education'
 import Activities from '../components/Activities'
 import Interests from '../components/Interests'
-import Education from '../components/Education'
 import Contact from '../components/Contact'
+import Hire from '../components/Hire'
 import Footer from '../components/Footer'
+import CursorGlow from '../components/ui/CursorGlow'
+import Preloader from '../components/ui/Preloader'
+import { useSite } from '../contexts/SiteContext'
+
+const SECTIONS: Record<string, React.ComponentType> = {
+  hero: Hero, about: About, journey: Journey, experience: Experience, skills: Skills,
+  projects: Projects, education: Education, activities: Activities, interests: Interests, hire: Hire, contact: Contact,
+}
+const DEFAULT_ORDER = Object.keys(SECTIONS)
 
 export default function Home() {
-  return (
-    <div className="bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen">
-      <ScrollProgress />
-      {/* Skip-to-content for accessibility + SEO crawlability */}
-      <a href="#hero"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-100 focus:px-4 focus:py-2 focus:bg-[#1A56A4] focus:text-white focus:rounded-md focus:text-sm">
-        Skip to content
-      </a>
-      <Navbar />
-      <main itemScope itemType="https://schema.org/Person"
-        itemID="https://lscblack.dev/#person">
-        {/* Hidden machine-readable identity signals */}
-        <meta itemProp="name" content="Loue Sauveur Christian" />
-        <meta itemProp="alternateName" content="lscblack" />
-        <meta itemProp="jobTitle" content="Senior Software Engineer" />
-        <meta itemProp="email" content="louesauveur18@gmail.com" />
-        <meta itemProp="url" content="https://lscblack.dev" />
-        <meta itemProp="image" content="https://avatars.githubusercontent.com/u/141139366?v=4" />
-        <meta itemProp="description" content="Senior Software Engineer specialising in cybersecurity, machine learning, and full-stack web development in Kigali, Rwanda." />
-        <link itemProp="sameAs" href="https://github.com/lscblack" />
-        <link itemProp="sameAs" href="https://www.linkedin.com/in/christian-loue-sauveur/" />
+  const { data, loading, error } = useSite()
+  const s = data?.settings
+  const effects = s?.effects ?? {}
+  const order = useMemo(() => {
+    const cfg = s?.sections?.length ? s.sections : DEFAULT_ORDER.map(key => ({ key, label: key, visible: true }))
+    const keys = cfg.filter(x => x.visible !== false && SECTIONS[x.key]).map(x => x.key)
+    // sections added after the settings row was created appear before "contact"
+    const missing = DEFAULT_ORDER.filter(k => !cfg.some(x => x.key === k))
+    const at = keys.indexOf('contact'); const merged = at >= 0 ? [...keys.slice(0, at), ...missing, ...keys.slice(at)] : [...keys, ...missing]
+    return merged.includes('hero') ? merged : ['hero', ...merged]
+  }, [s])
 
-        <Hero />
-        <About />
-        <Skills />
-        <Experience />
-        <Projects />
-        <Activities />
-        <Interests />
-        <Education />
-        <Contact />
+  if (error && !data) {
+    return (
+      <div className="min-h-screen grid place-items-center px-6 text-center">
+        <div>
+          <p className="section-label justify-center">offline</p>
+          <h1 className="h-section mt-4">The portfolio API is not reachable.</h1>
+          <p className="mt-3 text-muted">Start the server and refresh this page.</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={`min-h-screen bg-bg text-fg ${effects.grain !== false ? 'noise' : ''}`}>
+      {effects.preloader !== false && <Preloader text={s?.logo_text ? s.logo_text : 'lsc'} ready={!loading && !!data} />}
+      {effects.cursor_glow !== false && <CursorGlow />}
+      <ScrollProgress />
+      <a href="#about" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:px-4 focus:py-2 focus:bg-accent focus:text-accent-fg focus:rounded-full focus:text-sm">Skip to content</a>
+      <Navbar />
+      <main>
+        {data ? order.map(key => { const C = SECTIONS[key]; return <C key={key} /> }) : <div className="min-h-screen" />}
       </main>
-      <Footer />
+      {data && <Footer />}
     </div>
   )
 }

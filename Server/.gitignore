@@ -1,0 +1,7 @@
+.env
+.env.production
+uploads/
+__pycache__/
+*.pyc
+*.db
+.deploy/
