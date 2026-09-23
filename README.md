@@ -72,10 +72,11 @@ nano Server/.env.production            # DB_USER/DB_PASSWORD, SMTP, DEFAULT_ADMI
 sudo bash deploy/deploy.sh             # add --install-packages the first time if nginx/psql/node are missing
 ```
 
-**Nothing is installed into your Python environment.** The deploy verifies that the conda env can import
-the application (and has `gunicorn`); if something is missing it names it and stops. Pass `--install-deps`
-to install `Server/requirements.txt` — that builds a dedicated `.venv/` so other services sharing the conda
-env are untouched, or add `--shared-env` to install into the conda env itself.
+The application runs from the **`fastapi_setup` conda env** — no virtualenv is created and nothing is
+installed unless you ask. Each deploy verifies the env can import the application and stops with the exact
+missing module if not. `bash deploy/deploy.sh --install-deps` installs `Server/requirements.txt` into that
+conda env (note: if other services share it, they get those versions too). `CONDA_ENV=/path/to/env` or
+`CONDA_ENV=other_name` selects a different environment.
 
 `APP_DIR` defaults to the checkout the script lives in, so nothing is copied elsewhere. Override it
 (`sudo APP_DIR=/srv/portfolio bash deploy/deploy.sh`) to sync the code to a different directory instead,
@@ -102,3 +103,6 @@ Safety rails: it refuses to start without a reviewed `.env.production`, refuses 
 database passwords, never changes the password of an **existing** database role (which other apps on the
 server may share) unless you pass `--set-db-password`, and never installs or upgrades Python packages
 unless you pass `--install-deps`.
+
+**PostgreSQL only.** SQLite is not supported: a `sqlite://` URL is rejected at startup rather than
+silently creating a throwaway file database.

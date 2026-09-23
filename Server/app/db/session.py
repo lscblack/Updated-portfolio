@@ -13,13 +13,11 @@ from ..core.config import settings
 
 log = logging.getLogger(__name__)
 
-_kwargs: dict = {"pool_pre_ping": True}
-if settings.database_url.startswith("sqlite"):
-    _kwargs["connect_args"] = {"check_same_thread": False}
-else:
-    _kwargs.update(pool_size=5, max_overflow=10, pool_recycle=1800)
-
-engine: Engine = create_engine(settings.database_url, echo=False, **_kwargs)
+# PostgreSQL only — see settings.database_url
+engine: Engine = create_engine(
+    settings.database_url, echo=False,
+    pool_pre_ping=True, pool_size=5, max_overflow=10, pool_recycle=1800,
+)
 
 
 def get_session() -> Iterator[Session]:
@@ -29,8 +27,6 @@ def get_session() -> Iterator[Session]:
 
 def ensure_database(wait_seconds: int = 60) -> None:
     """Wait for the PostgreSQL server and create the application database if missing."""
-    if settings.database_url.startswith("sqlite"):
-        return
     admin = _sa_create_engine(settings.admin_db_url, isolation_level="AUTOCOMMIT", pool_pre_ping=True)
     deadline = time.time() + wait_seconds
     last = None

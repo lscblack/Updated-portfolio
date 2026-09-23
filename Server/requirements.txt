@@ -1,5 +1,7 @@
-# deploy.sh does NOT install these by default — it only verifies that the target environment can run
-# the application. This file is the reference set for `pip install -r`, or for `deploy.sh --install-deps`.
+# Installed into the `fastapi_setup` conda env (no virtualenv is used):
+#     conda activate fastapi_setup && pip install -r Server/requirements.txt
+# or: bash deploy/deploy.sh --install-deps
+# deploy.sh does NOT install these by default — it only verifies the env can run the application.
 #
 # Ranges rather than exact pins, so an install adapts to the environment it lands in instead of
 # downgrading packages shared with other services. Verified with a clean install (fastapi 0.120,

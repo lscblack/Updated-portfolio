@@ -1,6 +1,6 @@
 # Portfolio API
 
-FastAPI + SQLModel on PostgreSQL. See the root README for the full picture.
+FastAPI + SQLModel on PostgreSQL (PostgreSQL only — SQLite is rejected at startup). See the root README for the full picture.
 
 ```
 app/main.py            app factory, middleware stack, routers

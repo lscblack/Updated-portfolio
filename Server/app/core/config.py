@@ -134,16 +134,21 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self) -> str:
-        """Full SQLAlchemy URL. DATABASE_URL may omit the database name; DB_* fill the gaps."""
+        """Full PostgreSQL SQLAlchemy URL. DATABASE_URL may omit the database name; DB_* fill the gaps."""
         url = (self.DATABASE_URL or "").strip()
         if url.startswith("sqlite"):
-            return url
+            raise RuntimeError(
+                "SQLite is not supported — this application requires PostgreSQL. "
+                "Set DB_HOST/DB_USER/DB_PASSWORD/DB_NAME (or a postgresql:// DATABASE_URL) in the .env file."
+            )
         if not url:
             url = f"postgresql+psycopg://{quote_plus(self.DB_USER)}:{quote_plus(self.DB_PASSWORD)}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         if url.startswith("postgres://"):
             url = "postgresql+psycopg://" + url[len("postgres://"):]
         elif url.startswith("postgresql://"):
             url = "postgresql+psycopg://" + url[len("postgresql://"):]
+        if not url.startswith("postgresql"):
+            raise RuntimeError(f"unsupported DATABASE_URL scheme in {url.split('://')[0]}:// — only PostgreSQL is supported")
         parts = urlsplit(url)
         path = parts.path.strip("/")
         if not path:
