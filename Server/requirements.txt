@@ -1,5 +1,9 @@
-# Version ranges (not exact pins) so the install adapts to the environment it lands in
-# and does not churn packages shared with other applications.
+# deploy.sh does NOT install these by default — it only verifies that the target environment can run
+# the application. This file is the reference set for `pip install -r`, or for `deploy.sh --install-deps`.
+#
+# Ranges rather than exact pins, so an install adapts to the environment it lands in instead of
+# downgrading packages shared with other services. Verified with a clean install (fastapi 0.120,
+# pydantic 2.13, sqlmodel 0.0.46) and against the older set already present in the dev environment.
 fastapi>=0.115,<0.121
 uvicorn[standard]>=0.34,<0.40
 gunicorn>=22,<24

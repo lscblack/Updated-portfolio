@@ -5,7 +5,8 @@
 #  • Web   : https://lscblack.tech (+ www → apex)  → nginx serving Clients/dist, proxying /api and /uploads
 #  • API   : https://api.lscblack.tech               → gunicorn/uvicorn on a free local port (systemd: lscblack-api)
 #  • Code  : deployed in place (this checkout; override with APP_DIR=…)  • DB: PostgreSQL
-#  • Python: its own .venv, built on the "fastapi_setup" conda env (or --shared-env to use that env directly)
+#  • Python: the "fastapi_setup" conda env, verified but never modified (--install-deps to install into a
+#            dedicated .venv, or --install-deps --shared-env to install into the conda env itself)
 #
 #  Usage (on the server, as a sudoer):
 #     sudo bash deploy/deploy.sh                 # full install / update (idempotent)
@@ -16,8 +17,10 @@
 #                                                # server hosts other apps and apt triggers needrestart)
 #     sudo bash deploy/deploy.sh --set-db-password   # allow changing the password of an EXISTING database role
 #                                                # (off by default — other apps on this server may use that role)
-#     sudo bash deploy/deploy.sh --shared-env        # install the Python deps into the conda env itself instead of
-#                                                # the app's own .venv (affects every service sharing that env)
+#     sudo bash deploy/deploy.sh --install-deps      # install/upgrade the Python dependencies (off by default:
+#                                                # the existing environment is only verified, never modified)
+#     sudo bash deploy/deploy.sh --install-deps --shared-env   # …into the conda env itself rather than the app's
+#                                                # own .venv (that env is usually shared with other services)
 #
 #  Scope: only lscblack-api.service, the nginx site files for our domains (nginx is *reloaded*, never
 #  restarted) and the PostgreSQL role password from .env are touched. No other service is restarted.
@@ -42,10 +45,10 @@ CERTBOT_EMAIL="${CERTBOT_EMAIL:-tech@nexventures.net}"
 BACKEND_DIR="Server"
 FRONTEND_DIR="Clients"
 STATE_DIR="$APP_DIR/.deploy"
-DO_BACKEND=1; DO_FRONTEND=1; DO_CERTBOT=1; INSTALL_PKGS=0; SET_DB_PASSWORD=0; SHARED_ENV=0
+DO_BACKEND=1; DO_FRONTEND=1; DO_CERTBOT=1; INSTALL_PKGS=0; SET_DB_PASSWORD=0; SHARED_ENV=0; INSTALL_DEPS=0
 for a in "$@"; do case "$a" in
   --backend-only) DO_FRONTEND=0;; --frontend-only) DO_BACKEND=0;; --no-certbot) DO_CERTBOT=0;; --install-packages) INSTALL_PKGS=1;;
-  --set-db-password) SET_DB_PASSWORD=1;; --shared-env) SHARED_ENV=1;; --verbose|-v) set -x;;
+  --set-db-password) SET_DB_PASSWORD=1;; --shared-env) SHARED_ENV=1;; --install-deps) INSTALL_DEPS=1;; --verbose|-v) set -x;;
   -h|--help) sed -n 2,24p "$0"; exit 0;; *) echo "unknown option $a"; exit 1;; esac; done
 
 apt_install() {
@@ -184,18 +187,14 @@ if [[ -z "$PYBIN" ]]; then for d in /home/*/miniconda3 /home/*/anaconda3 /root/m
 BASE_PY="$PYBIN/python"
 ok "base interpreter: $BASE_PY ($("$BASE_PY" --version 2>&1))"
 
-# By default the application gets its own virtualenv instead of installing into the conda env,
-# which is typically shared with other services on this host — installing there would upgrade
-# their FastAPI/pydantic/SQLModel too. Use --shared-env to install into the conda env anyway.
-if (( SHARED_ENV )); then
-  echo "   installing into the shared environment $PYBIN — other applications using it get these versions too"
-else
+# The existing environment is used as-is and only verified. A dedicated virtualenv is created only when
+# --install-deps is given without --shared-env, so installing never mutates an environment other services share.
+if (( INSTALL_DEPS && ! SHARED_ENV )); then
   VENV_DIR="$APP_DIR/.venv"
   VENV_BASE="$BASE_PY"
   # an interpreter inside a private home (/root, /home/x) cannot be executed by the service user,
-  # and a virtualenv built on it inherits that; prefer the system python in that case
+  # and a virtualenv built on it inherits that; prefer a real system python in that case
   if ! sudo -u "$RUN_USER" test -x "$BASE_PY" 2>/dev/null; then
-    # `python3` on PATH may itself be the conda one inside /root, so try the real system paths first
     for cand in /usr/bin/python3 /usr/local/bin/python3 "$(command -v python3 || true)"; do
       [[ -n "$cand" && -x "$cand" ]] || continue
       sudo -u "$RUN_USER" test -x "$cand" 2>/dev/null || continue
@@ -213,6 +212,9 @@ else
     ok "created virtualenv $VENV_DIR"
   fi
   PYBIN="$VENV_DIR/bin"
+elif [[ -x "$APP_DIR/.venv/bin/python" ]]; then
+  # a previous --install-deps run created one; keep using it
+  PYBIN="$APP_DIR/.venv/bin"
 fi
 echo "$PYBIN" > "$STATE_DIR/pybin"
 ok "python: $PYBIN/python ($("$PYBIN/python" --version 2>&1))"
@@ -223,10 +225,30 @@ if ! sudo -u "$RUN_USER" test -x "$PYBIN/python" 2>/dev/null; then
   RUN_USER=root
 fi
 if ((DO_BACKEND)); then
-  log "Installing Python dependencies into $PYBIN"
-  "$PYBIN/python" -m pip install -q --upgrade pip
-  "$PYBIN/python" -m pip install -q -r "$APP_DIR/$BACKEND_DIR/requirements.txt"
-  ok "python deps installed"
+  if ((INSTALL_DEPS)); then
+    log "Installing Python dependencies into $PYBIN"
+    "$PYBIN/python" -m pip install -q --upgrade pip
+    "$PYBIN/python" -m pip install -q -r "$APP_DIR/$BACKEND_DIR/requirements.txt" || die "pip could not install $BACKEND_DIR/requirements.txt (see the resolver output above)"
+    ok "python deps installed"
+  fi
+  # verify the environment can actually run the application — nothing is installed or upgraded here
+  log "Verifying the Python environment"
+  ENVLOG="$STATE_DIR/envcheck.log"
+  if ( cd "$APP_DIR/$BACKEND_DIR" && "$PYBIN/python" -c "import app.main" ) >"$ENVLOG" 2>&1; then
+    MISSING=""
+    [[ -x "$PYBIN/gunicorn" ]] || MISSING="gunicorn"
+    if [[ -n "$MISSING" ]]; then
+      die "$PYBIN is missing: $MISSING
+   Install it into that environment, or rerun with --install-deps."
+    fi
+    ok "environment satisfies the application — nothing was installed"
+  else
+    echo "── error from 'import app.main' in $PYBIN ──"
+    tail -n 12 "$ENVLOG" >&2
+    die "$PYBIN cannot run the application (see the error above).
+   Install the missing package(s) into that environment yourself, or rerun with --install-deps
+   (that builds a dedicated $APP_DIR/.venv; add --shared-env to install into the conda env instead)."
+  fi
 fi
 
 # ── 5. pick (and remember) a free API port ─────────────────────────────────

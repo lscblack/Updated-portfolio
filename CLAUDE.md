@@ -4,7 +4,8 @@
   Typecheck with `npx tsc -b`; lint with `npx eslint .` — `react-hooks/refs` violations are real bugs under
   the compiler, `set-state-in-effect` is a warning.
 - Backend in `Server/` runs in the conda env `fastapi_setup` (`/home/lscblack/miniconda3/envs/fastapi_setup/bin`)
-  locally; in production `deploy.sh` builds a dedicated `.venv` instead so shared envs are not mutated.
+  locally and in production. `deploy.sh` only *verifies* that env (it never installs); `--install-deps`
+  installs into a dedicated `.venv`, `--install-deps --shared-env` into the conda env itself.
   `requirements.txt` uses version *ranges* — validate changes with a clean install, not just the dev env
   (sqlmodel >=0.0.25 needs pydantic >=2.11, and newer SQLModel stores `TIMESTAMP WITH TIME ZONE`, so all
   model timestamps must use the aware `app/models/base.py:utcnow`).

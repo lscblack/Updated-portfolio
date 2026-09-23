@@ -72,11 +72,10 @@ nano Server/.env.production            # DB_USER/DB_PASSWORD, SMTP, DEFAULT_ADMI
 sudo bash deploy/deploy.sh             # add --install-packages the first time if nginx/psql/node are missing
 ```
 
-Python dependencies go into the application's **own virtualenv** (`.venv/`), built on that conda
-environment — so upgrading FastAPI/pydantic/SQLModel here never touches other services sharing the conda
-env. `--shared-env` installs into the conda env instead. If the conda env lives in a private home
-directory (`/root/...`), the virtualenv is built on the system python so the service can still run as
-`www-data` rather than root.
+**Nothing is installed into your Python environment.** The deploy verifies that the conda env can import
+the application (and has `gunicorn`); if something is missing it names it and stops. Pass `--install-deps`
+to install `Server/requirements.txt` — that builds a dedicated `.venv/` so other services sharing the conda
+env are untouched, or add `--shared-env` to install into the conda env itself.
 
 `APP_DIR` defaults to the checkout the script lives in, so nothing is copied elsewhere. Override it
 (`sudo APP_DIR=/srv/portfolio bash deploy/deploy.sh`) to sync the code to a different directory instead,
@@ -101,5 +100,5 @@ never restarted.
 
 Safety rails: it refuses to start without a reviewed `.env.production`, refuses placeholder or short
 database passwords, never changes the password of an **existing** database role (which other apps on the
-server may share) unless you pass `--set-db-password`, and keeps Python dependencies in the app's own
-virtualenv unless you pass `--shared-env`.
+server may share) unless you pass `--set-db-password`, and never installs or upgrades Python packages
+unless you pass `--install-deps`.
