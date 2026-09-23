@@ -276,7 +276,11 @@ if ((DO_FRONTEND)); then
   log "Building frontend"
   PNPM="pnpm"; command -v pnpm >/dev/null || { command -v corepack >/dev/null && corepack enable pnpm >/dev/null 2>&1 || true; }
   command -v pnpm >/dev/null || PNPM="npx --yes pnpm@11"
-  ( cd "$APP_DIR/$FRONTEND_DIR" && printf 'VITE_API_URL=\n' > .env.production && CI=true $PNPM install --frozen-lockfile --silent && $PNPM build --silent )
+  # note: flags after the script name are forwarded to the script itself (pnpm build --silent would
+  # reach vite as `vite build --silent`), so pnpm's own flags go before the command
+  ( cd "$APP_DIR/$FRONTEND_DIR" && printf 'VITE_API_URL=\n' > .env.production \
+      && CI=true $PNPM install --frozen-lockfile --reporter=silent \
+      && CI=true $PNPM run build )
   chown -R "$RUN_USER:$RUN_USER" "$APP_DIR/$FRONTEND_DIR/dist"
   ok "frontend built → $APP_DIR/$FRONTEND_DIR/dist"
 fi
