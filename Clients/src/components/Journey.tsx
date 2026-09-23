@@ -265,7 +265,7 @@ function Scene({ items, title, subtitle }: { items: Milestone[]; title: string; 
               <motion.div className="absolute left-0 h-px bg-accent origin-left" style={{ scaleX: progress, width: '100%' }} />
               <div className="relative w-full flex justify-between">
                 {items.map((m, i) => (
-                  <button key={m.id ?? i} onClick={() => jumpTo(i)} aria-label={`Go to ${m.year}: ${m.title}`} className="group relative -my-2 py-2 px-1">
+                  <button key={m.id ?? i} onClick={() => jumpTo(i)} aria-label={`Go to ${m.year}: ${m.title}`} className="group relative -my-3 py-3 px-1.5 sm:px-1 touch-manipulation">
                     <span className={`block w-2.5 h-2.5 rounded-full border transition-all ${i <= active ? 'bg-accent border-accent' : 'bg-transparent border-white/60'} ${i === active ? 'scale-150 shadow-[0_0_14px_var(--accent)]' : ''}`} />
                     <span className={`absolute left-1/2 -translate-x-1/2 -top-5 font-mono text-[0.6rem] whitespace-nowrap transition-opacity ${i === active ? 'text-white opacity-100' : 'text-white/60 opacity-0 group-hover:opacity-100'} ${mobile && i !== active ? 'hidden' : ''}`}>{m.year}</span>
                   </button>

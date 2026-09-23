@@ -218,6 +218,12 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
 
+/* ── charts ───────────────────────────────────────────────────────────────
+   Categorical slots validated with the dataviz palette checker (lightness band,
+   chroma floor, CVD separation, normal-vision floor, contrast) in both modes. */
+.viz { --series-1: #2a78d6; --series-2: #eb6834; --viz-grid: color-mix(in oklab, var(--fg) 10%, transparent); }
+html.dark .viz { --series-1: #3987e5; --series-2: #d95926; }
+
 /* ── admin ────────────────────────────────────────────────────────────── */
 .admin-nav-link { display: flex; align-items: center; gap: .7rem; padding: .55rem .7rem; border-radius: calc(var(--radius) * .6); font-size: .85rem; color: var(--muted); transition: background .2s, color .2s; }
 .admin-nav-link:hover { color: var(--fg); background: var(--surface-2); }

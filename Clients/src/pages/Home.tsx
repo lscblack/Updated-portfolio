@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import ScrollProgress from '../components/ScrollProgress'
 import Navbar from '../components/Navbar'
 import Hero from '../components/Hero'
@@ -16,6 +16,7 @@ import Footer from '../components/Footer'
 import CursorGlow from '../components/ui/CursorGlow'
 import Preloader from '../components/ui/Preloader'
 import { useSite } from '../contexts/SiteContext'
+import { startTracking } from '../lib/analytics'
 
 const SECTIONS: Record<string, React.ComponentType> = {
   hero: Hero, about: About, journey: Journey, experience: Experience, skills: Skills,
@@ -25,6 +26,7 @@ const DEFAULT_ORDER = Object.keys(SECTIONS)
 
 export default function Home() {
   const { data, loading, error } = useSite()
+  useEffect(() => startTracking(), [])
   const s = data?.settings
   const effects = s?.effects ?? {}
   const order = useMemo(() => {

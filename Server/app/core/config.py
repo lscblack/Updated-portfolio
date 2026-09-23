@@ -106,6 +106,14 @@ class Settings(BaseSettings):
         return [o.strip().rstrip("/") for o in self.CORS_ORIGINS.split(",") if o.strip()]
 
     @property
+    def frame_ancestors(self) -> List[str]:
+        """Origins allowed to embed uploaded files (the resume viewer lives on the web domain)."""
+        origins = [o for o in self.cors_origins if o.startswith("http")]
+        if self.FRONTEND_URL and self.FRONTEND_URL not in origins:
+            origins.append(self.FRONTEND_URL.rstrip("/"))
+        return origins
+
+    @property
     def trusted_hosts(self) -> List[str]:
         return [h.strip() for h in self.TRUSTED_HOSTS.split(",") if h.strip()]
 

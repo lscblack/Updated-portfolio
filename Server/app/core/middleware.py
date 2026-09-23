@@ -34,7 +34,7 @@ class SecurityHeadersMiddleware:
                     b"x-content-type-options": b"nosniff",
                     b"x-frame-options": b"DENY",
                     b"referrer-policy": b"strict-origin-when-cross-origin",
-                    b"permissions-policy": b"camera=(), microphone=(), geolocation=(), payment=()",
+                    b"permissions-policy": b"camera=(), microphone=(), geolocation=(), payment=(), fullscreen=(self)",
                     b"cross-origin-opener-policy": b"same-origin",
                     b"cross-origin-resource-policy": b"cross-origin",
                     b"x-permitted-cross-domain-policies": b"none",
@@ -43,9 +43,19 @@ class SecurityHeadersMiddleware:
                 path = scope.get("path", "")
                 if path.startswith("/uploads/"):
                     extra[b"cache-control"] = b"public, max-age=604800, immutable"
-                elif path.startswith("/api/public/"):
+                    # uploads are embedded by the site (the resume is shown in an iframe), so framing
+                    # must be allowed for our own origins instead of blanket-denied
+                    extra.pop(b"x-frame-options", None)
+                    extra[b"content-security-policy"] = (
+                        "default-src 'none'; img-src 'self' data:; object-src 'self'; plugin-types application/pdf; "
+                        f"frame-ancestors 'self' {' '.join(settings.frame_ancestors)}".strip()
+                    ).encode()
+                elif path == "/api/public/site":
                     extra[b"cache-control"] = b"public, max-age=60"
-                if path in ("/docs", "/redoc", "/openapi.json") or path.startswith("/docs/"):
+                    extra[b"content-security-policy"] = b"default-src 'none'; frame-ancestors 'none'; img-src 'self' data:"
+                # everything else keeps no-store: captcha ids are single use, and a cached one
+                # would be replayed and rejected on the next submission
+                elif path in ("/docs", "/redoc", "/openapi.json") or path.startswith("/docs/"):
                     extra.pop(b"x-frame-options", None)   # swagger UI loads its own assets
                 else:
                     extra[b"content-security-policy"] = b"default-src 'none'; frame-ancestors 'none'; img-src 'self' data:"

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Inbox, Briefcase, Route, FolderKanban, Cpu, GraduationCap, Heart, Compass, Award, Images, Activity, RefreshCw, Palette, Globe } from 'lucide-react'
+import { ArrowRight, Inbox, Briefcase, Users, Route, FolderKanban, Cpu, GraduationCap, Heart, Compass, Award, Images, Activity, RefreshCw, Palette, Globe } from 'lucide-react'
 import api, { errorMessage } from '../../api/client'
 import { timeAgo } from '../../lib/dates'
 import { useSite } from '../../contexts/SiteContext'
@@ -8,7 +8,7 @@ import { PageHeader, Card } from './ui/Fields'
 import { useToast } from './ui/Toast'
 import type { AuditEntry } from '../../lib/types'
 
-type Overview = { counts: Record<string, number>; messages: { unread: number; total: number }; offers?: { new: number; total: number }; uploads: number; settings_updated_at: string | null; recent_activity: AuditEntry[] }
+type Overview = { counts: Record<string, number>; messages: { unread: number; total: number }; offers?: { new: number; total: number }; audience?: { devices_30d: number; visits_30d: number }; uploads: number; settings_updated_at: string | null; recent_activity: AuditEntry[] }
 
 const TILES = [
   { key: 'journey', label: 'Journey', icon: Route }, { key: 'experience', label: 'Experience', icon: Briefcase },
@@ -44,6 +44,10 @@ export default function AdminOverview() {
         <Link to="/admin/media" className="card card-hover p-5 flex items-center gap-4">
           <span className="w-11 h-11 rounded-full bg-surface-2 text-fg grid place-items-center"><Images size={18} /></span>
           <div><p className="font-display text-2xl font-extrabold text-fg">{ov?.uploads ?? '–'}</p><p className="text-xs text-muted">uploaded images</p></div>
+        </Link>
+        <Link to="/admin/analytics" className="card card-hover p-5 flex items-center gap-4">
+          <span className="w-11 h-11 rounded-full bg-accent/15 text-accent-ink grid place-items-center"><Users size={18} /></span>
+          <div><p className="font-display text-2xl font-extrabold text-fg">{ov?.audience?.devices_30d ?? '–'}</p><p className="text-xs text-muted">unique devices · 30 days</p></div>
         </Link>
         <div className="card p-5 flex items-center gap-4">
           <span className={`w-11 h-11 rounded-full grid place-items-center ${health ? 'bg-emerald-500/15 text-emerald-500' : health === false ? 'bg-red-500/15 text-red-500' : 'bg-surface-2 text-muted'}`}><Activity size={18} /></span>

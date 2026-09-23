@@ -1,7 +1,8 @@
 """Authenticated dashboard API: every section is editable here. Generic collections share one code path."""
 from __future__ import annotations
 
-from datetime import datetime
+from collections import Counter
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
@@ -15,7 +16,7 @@ from ..db.session import get_session
 from ..models import (
     AboutBase, AboutContent, ActivityBase, ActivityItem, AdminUser, AuditLog, Certification,
     CertificationBase, ContactMessage, EducationBase, EducationItem, ExperienceBase, ExperienceItem,
-    InterestBase, InterestItem, JourneyBase, JourneyMilestone, Notification, Offer, Project, ProjectBase, SiteSettings,
+    InterestBase, InterestItem, JourneyBase, JourneyMilestone, Notification, Offer, Project, ProjectBase, SiteSettings, Visit,
     SiteSettingsBase, SkillCategory, SkillCategoryBase, Upload,
 )
 from .admin_auth import audit, get_current_admin
@@ -65,6 +66,10 @@ def overview(session: Session = Depends(get_session)):
     settings_row = session.get(SiteSettings, 1)
     return {
         "counts": counts, "messages": {"unread": unread, "total": total_msgs}, "offers": {"new": offers_new, "total": offers_total},
+        "audience": {
+            "devices_30d": session.exec(select(func.count(func.distinct(Visit.visitor_hash))).where(Visit.started_at >= now_utc() - timedelta(days=30))).one(),
+            "visits_30d": session.exec(select(func.count()).select_from(Visit).where(Visit.started_at >= now_utc() - timedelta(days=30))).one(),
+        },
         "uploads": session.exec(select(func.count()).select_from(Upload)).one(),
         "settings_updated_at": settings_row.updated_at.isoformat() if settings_row else None,
         "recent_activity": [r.model_dump() for r in recent],
@@ -296,6 +301,67 @@ def mark_notifications(payload: dict, session: Session = Depends(get_session)):
         n.read = True; session.add(n)
     session.commit()
     return {"ok": True}
+
+
+# ── visit analytics ────────────────────────────────────────────────────────
+@router.get("/analytics")
+def analytics(days: int = Query(30, ge=1, le=365), session: Session = Depends(get_session)):
+    """Unique devices, visits, time on site and interactions over the last `days` days."""
+    since = now_utc() - timedelta(days=days)
+    rows = session.exec(select(Visit).where(Visit.started_at >= since).order_by(Visit.started_at)).all()
+    # a visit only counts as engaged once it lasted a few seconds — filters accidental opens
+    engaged = [v for v in rows if v.duration_seconds >= 5]
+
+    def top(values, n=8):
+        return [{"name": k, "count": c} for k, c in Counter(v for v in values if v).most_common(n)]
+
+    by_day: dict[str, dict[str, object]] = {}
+    for i in range(days):
+        d = (since + timedelta(days=i + 1)).date().isoformat()
+        by_day[d] = {"date": d, "visits": 0, "devices": set()}
+    for v in rows:
+        key = v.started_at.date().isoformat()
+        if key in by_day:
+            by_day[key]["visits"] = int(by_day[key]["visits"]) + 1        # type: ignore[arg-type]
+            by_day[key]["devices"].add(v.visitor_hash)                    # type: ignore[union-attr]
+    series = [{"date": d["date"], "visits": d["visits"], "devices": len(d["devices"])} for d in by_day.values()]  # type: ignore[arg-type]
+
+    durations = sorted(v.duration_seconds for v in engaged)
+    total_seconds = sum(durations)
+    unique_devices = len({v.visitor_hash for v in rows})
+    returning = len([h for h, c in Counter(v.visitor_hash for v in rows).items() if c > 1])
+
+    return {
+        "days": days,
+        "totals": {
+            "unique_devices": unique_devices,
+            "returning_devices": returning,
+            "visits": len(rows),
+            "engaged_visits": len(engaged),
+            "interactions": sum(v.interactions for v in rows),
+            "avg_seconds": round(total_seconds / len(engaged)) if engaged else 0,
+            "median_seconds": durations[len(durations) // 2] if durations else 0,
+            "total_seconds": total_seconds,
+            "avg_scroll": round(sum(v.max_scroll for v in engaged) / len(engaged)) if engaged else 0,
+            "bounce_rate": round(100 * (1 - len(engaged) / len(rows))) if rows else 0,
+        },
+        "series": series,
+        "devices": top(v.device for v in rows),
+        "browsers": top(v.browser for v in rows),
+        "systems": top(v.os for v in rows),
+        "referrers": top((v.referrer.split("/")[2] if "//" in v.referrer else v.referrer) for v in rows),
+        "countries": top(v.country for v in rows),
+        "sections": top([s for v in rows for s in (v.sections or [])], 12),
+        "recent": [
+            {
+                "device": v.device, "browser": v.browser, "os": v.os, "country": v.country,
+                "duration": v.duration_seconds, "interactions": v.interactions, "scroll": v.max_scroll,
+                "referrer": v.referrer, "sections": len(v.sections or []),
+                "started_at": v.started_at.isoformat(), "returning": False,
+            }
+            for v in sorted(rows, key=lambda x: x.started_at, reverse=True)[:12]
+        ],
+    }
 
 
 # ── audit trail ────────────────────────────────────────────────────────────

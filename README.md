@@ -42,9 +42,18 @@ emailed (accounts listed in `OTP_BYPASS_EMAIL` may also use `OTP_BYPASS_CODE`).
 | Journey / Experience / Skills / Projects / Education / Certifications / Life / Interests | drag-to-reorder lists with a schema-driven editor, visibility toggles, icons, images |
 | GitHub import | pull public repositories and turn them into projects |
 | Offers | hire-me proposals (job, contract, freelance, research, collaboration): status workflow with email to the sender, private notes; you are emailed and get an in-app notification (bell) for every offer and message |
+| Audience | unique devices, visits, time on site, interactions, scroll depth, device/browser/OS, referrers, sections reached, daily trend |
 | Inbox | contact-form messages (encrypted at rest), star / read / delete |
 | Media | image uploads (re-encoded, metadata stripped) |
 | Security | change email / name / password, sign out everywhere, audit log |
+
+## Analytics
+
+Self-hosted and cookie-free. The browser keeps a random device id in `localStorage`; the server stores only
+a keyed hash of it, so repeat visits can be recognised without identifying anyone and no IP address is kept.
+Bots, the dashboard itself and visitors sending Do-Not-Track are never recorded. Each session reports
+cumulative active time (paused when the tab is hidden or idle for a minute), interactions, scroll depth and
+the sections actually reached — so a dropped beacon never loses earlier progress.
 
 ## Security
 

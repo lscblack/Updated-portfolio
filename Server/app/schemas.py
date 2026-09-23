@@ -76,3 +76,22 @@ class ContactIn(BaseModel):
     captcha_id: str = Field(default="", max_length=64)
     captcha_answer: str = Field(default="", max_length=32)
     website: str = Field(default="", max_length=200)     # honeypot — must stay empty
+
+
+class VisitStart(BaseModel):
+    """Opening beacon from the public site. `visitor` is a random id the browser keeps in localStorage."""
+    visitor: str = Field(min_length=8, max_length=64)
+    path: str = Field(default="/", max_length=200)
+    referrer: str = Field(default="", max_length=300)
+    screen: str = Field(default="", max_length=24)
+    timezone: str = Field(default="", max_length=64)
+    language: str = Field(default="", max_length=16)
+
+
+class VisitPing(BaseModel):
+    """Heartbeat: cumulative values, so a lost beacon never loses earlier progress."""
+    duration: int = Field(default=0, ge=0, le=86_400)
+    interactions: int = Field(default=0, ge=0, le=100_000)
+    max_scroll: int = Field(default=0, ge=0, le=100)
+    sections: list[str] = Field(default_factory=list)
+    pages: int = Field(default=1, ge=1, le=500)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Palette, Globe, User, Route, Briefcase, Cpu, FolderKanban, GraduationCap, Award, Heart, Compass, Inbox, Images, ShieldCheck, LogOut, ExternalLink, Menu, X, Sun, Moon, type LucideIcon } from 'lucide-react'
+import { LayoutDashboard, Palette, Globe, User, Route, Briefcase, Cpu, FolderKanban, GraduationCap, Award, Heart, Compass, Inbox, Images, ShieldCheck, LogOut, ExternalLink, Menu, X, Sun, Moon, BarChart3, type LucideIcon } from 'lucide-react'
 import { GithubIcon } from '../../components/ui/Brand'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
@@ -30,6 +30,7 @@ const GROUPS: { title: string; items: NavItem[] }[] = [
     { to: '/admin/interests', label: 'Interests', icon: Compass },
   ] },
   { title: 'Operations', items: [
+    { to: '/admin/analytics', label: 'Audience', icon: BarChart3 },
     { to: '/admin/offers', label: 'Offers', icon: Briefcase },
     { to: '/admin/messages', label: 'Inbox', icon: Inbox },
     { to: '/admin/media', label: 'Media', icon: Images },

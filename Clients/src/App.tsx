@@ -23,6 +23,7 @@ const AdminMedia = lazy(() => import('./pages/Admin/AdminMedia'))
 const AdminSettings = lazy(() => import('./pages/Admin/AdminSettings'))
 const ProjectsAdmin = lazy(() => import('./pages/Admin/ProjectsAdmin'))
 const AdminOffers = lazy(() => import('./pages/Admin/AdminOffers'))
+const AdminAnalytics = lazy(() => import('./pages/Admin/AdminAnalytics'))
 
 const Fallback = () => <div className="min-h-screen grid place-items-center bg-bg text-muted"><Loader2 className="animate-spin" /></div>
 
@@ -51,6 +52,7 @@ export default function App() {
                 <Route path="/admin/github" element={<Protected><ProjectsAdmin /></Protected>} />
                 <Route path="/admin/messages" element={<Protected><AdminMessages /></Protected>} />
                 <Route path="/admin/offers" element={<Protected><AdminOffers /></Protected>} />
+                <Route path="/admin/analytics" element={<Protected><AdminAnalytics /></Protected>} />
                 <Route path="/admin/media" element={<Protected><AdminMedia /></Protected>} />
                 <Route path="/admin/settings" element={<Protected><AdminSettings /></Protected>} />
                 <Route path="/admin/*" element={<Navigate to="/admin" replace />} />
