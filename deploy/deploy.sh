@@ -58,6 +58,11 @@ apt_install() {
 log()  { printf '\e[1;34m▶ %s\e[0m\n' "$*"; }
 ok()   { printf '\e[1;32m✔ %s\e[0m\n' "$*"; }
 die()  { printf '\e[1;31m✖ %s\e[0m\n' "$*" >&2; exit 1; }
+# can the interpreter in $1 (a bin directory) actually run the application?
+py_can_run() {
+  [[ -x "$1/python" ]] || return 1
+  ( cd "$APP_DIR/$BACKEND_DIR" && "$1/python" -c "import app.main" ) >"$STATE_DIR/envcheck.log" 2>&1
+}
 [[ $EUID -eq 0 ]] || die "run with sudo"
 printf '\e[1m\n═══ lscblack.tech portfolio — deploy ═══\e[0m\n'
 echo "   app dir : $APP_DIR      conda env: $CONDA_ENV"
@@ -213,8 +218,15 @@ if (( INSTALL_DEPS && ! SHARED_ENV )); then
   fi
   PYBIN="$VENV_DIR/bin"
 elif [[ -x "$APP_DIR/.venv/bin/python" ]]; then
-  # a previous --install-deps run created one; keep using it
-  PYBIN="$APP_DIR/.venv/bin"
+  # a previous --install-deps run left a virtualenv: use it only if it can actually run the
+  # application, so an empty or half-built one never shadows a working conda environment
+  if py_can_run "$APP_DIR/.venv/bin"; then
+    PYBIN="$APP_DIR/.venv/bin"
+    ok "using the application virtualenv $APP_DIR/.venv"
+  else
+    echo "   ignoring $APP_DIR/.venv — it cannot run the application (left over from an interrupted install)"
+    echo "   remove it with 'rm -rf $APP_DIR/.venv', or populate it by rerunning with --install-deps"
+  fi
 fi
 echo "$PYBIN" > "$STATE_DIR/pybin"
 ok "python: $PYBIN/python ($("$PYBIN/python" --version 2>&1))"
@@ -234,7 +246,7 @@ if ((DO_BACKEND)); then
   # verify the environment can actually run the application — nothing is installed or upgraded here
   log "Verifying the Python environment"
   ENVLOG="$STATE_DIR/envcheck.log"
-  if ( cd "$APP_DIR/$BACKEND_DIR" && "$PYBIN/python" -c "import app.main" ) >"$ENVLOG" 2>&1; then
+  if py_can_run "$PYBIN"; then
     MISSING=""
     [[ -x "$PYBIN/gunicorn" ]] || MISSING="gunicorn"
     if [[ -n "$MISSING" ]]; then
