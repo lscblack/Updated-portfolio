@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 
 from ..core.config import settings
 from ..core.mailer import send_contact_notification, send_contact_receipt, send_offer_notification, send_offer_receipt
-from ..core.security import constant_eq, encrypt_text, hash_code, hash_ip, server_key_id, server_public_key_spki_b64
+from ..core.security import constant_eq, encrypt_text, hash_code, hash_ip, now_utc, server_key_id, server_public_key_spki_b64
 from ..core.store import cache_get, cache_set, kv_del, kv_get, kv_set
 from ..db.session import get_session
 from ..models import (
@@ -49,7 +49,7 @@ def build_site(session: Session) -> dict:
         "certifications": _rows(session, Certification),
         "activities": _rows(session, ActivityItem),
         "interests": _rows(session, InterestItem),
-        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "generated_at": now_utc().isoformat(),
     }
 
 
@@ -66,7 +66,7 @@ def site(session: Session = Depends(get_session)):
 @router.get("/health")
 def health(session: Session = Depends(get_session)):
     session.exec(select(AdminUser.id).limit(1)).first()
-    return {"ok": True, "env": settings.APP_ENV, "time": datetime.utcnow().isoformat() + "Z"}
+    return {"ok": True, "env": settings.APP_ENV, "time": now_utc().isoformat()}
 
 
 @router.get("/handshake")

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Briefcase, Star, Trash2, Search, Loader2, Reply, X, Check, Clock, XCircle, Send, Building2, Globe, Wallet, CalendarClock, Mail } from 'lucide-react'
 import api, { errorMessage } from '../../api/client'
+import { formatDateTime } from '../../lib/dates'
 import type { Offer } from '../../lib/types'
 import { Confirm, PageHeader, TextArea, Toggle } from './ui/Fields'
 import { useToast } from './ui/Toast'
@@ -13,7 +14,6 @@ const STATUS: Record<Offer['status'], { label: string; cls: string; icon: React.
   declined: { label: 'Declined', cls: 'bg-red-500/15 text-red-500', icon: XCircle },
 }
 const KIND: Record<string, string> = { job: 'Full-time role', contract: 'Contract', freelance: 'Freelance', research: 'Research', collaboration: 'Collaboration', other: 'Other' }
-function fmt(iso: string) { return new Date(iso + (iso.endsWith('Z') ? '' : 'Z')).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) }
 
 export default function AdminOffers() {
   const { toast } = useToast()
@@ -61,7 +61,7 @@ export default function AdminOffers() {
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-2"><span className={`text-sm truncate ${o.read ? 'text-fg' : 'font-bold text-fg'}`}>{o.title}</span>{o.starred && <Star size={12} className="fill-current shrink-0" style={{ color: 'var(--accent-2)' }} />}</span>
                     <span className="block text-xs text-muted truncate">{o.name}{o.company ? ` · ${o.company}` : ''} · {KIND[o.kind] ?? o.kind}</span>
-                    <span className="block text-[0.68rem] text-muted mt-0.5">{fmt(o.created_at)}</span>
+                    <span className="block text-[0.68rem] text-muted mt-0.5">{formatDateTime(o.created_at)}</span>
                   </span>
                 </button>
               ) })}
@@ -75,7 +75,7 @@ export default function AdminOffers() {
                   <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS[sel.status].cls}`}>{STATUS[sel.status].label}</span>
                   <h2 className="font-display font-bold text-xl text-fg mt-3">{sel.title}</h2>
                   <p className="text-sm text-muted mt-1">{KIND[sel.kind] ?? sel.kind} · from <span className="text-fg font-semibold">{sel.name}</span> · <a href={`mailto:${sel.email}`} className="text-accent-ink hover:underline">{sel.email}</a></p>
-                  <p className="text-xs text-muted mt-1">{fmt(sel.created_at)}</p>
+                  <p className="text-xs text-muted mt-1">{formatDateTime(sel.created_at)}</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => patch(sel, { starred: !sel.starred })} className={`btn btn-ghost btn-sm ${sel.starred ? 'text-accent-ink' : ''}`} title="Star"><Star size={14} className={sel.starred ? 'fill-current' : ''} /></button>

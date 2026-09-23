@@ -68,9 +68,15 @@ cd /var/www/Updated-portfolio          # wherever the repo is checked out — it
 cp Server/.env.production.example Server/.env.production
 nano Server/.env.production            # DB_USER/DB_PASSWORD, SMTP, DEFAULT_ADMIN_* (secrets are generated if blank)
 
-# the Python environment (once):  conda create -n fastapi_setup python=3.11
+# the base interpreter (once):  conda create -n fastapi_setup python=3.11
 sudo bash deploy/deploy.sh             # add --install-packages the first time if nginx/psql/node are missing
 ```
+
+Python dependencies go into the application's **own virtualenv** (`.venv/`), built on that conda
+environment — so upgrading FastAPI/pydantic/SQLModel here never touches other services sharing the conda
+env. `--shared-env` installs into the conda env instead. If the conda env lives in a private home
+directory (`/root/...`), the virtualenv is built on the system python so the service can still run as
+`www-data` rather than root.
 
 `APP_DIR` defaults to the checkout the script lives in, so nothing is copied elsewhere. Override it
 (`sudo APP_DIR=/srv/portfolio bash deploy/deploy.sh`) to sync the code to a different directory instead,
@@ -94,5 +100,6 @@ Let's Encrypt certificates. Only this project's service and site files are touch
 never restarted.
 
 Safety rails: it refuses to start without a reviewed `.env.production`, refuses placeholder or short
-database passwords, and never changes the password of an **existing** database role (which other apps on
-the server may share) unless you pass `--set-db-password`.
+database passwords, never changes the password of an **existing** database role (which other apps on the
+server may share) unless you pass `--set-db-password`, and keeps Python dependencies in the app's own
+virtualenv unless you pass `--shared-env`.

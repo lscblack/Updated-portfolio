@@ -2,11 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Inbox, Mail, MailOpen, Star, Trash2, Search, Loader2, Reply, X } from 'lucide-react'
 import api, { errorMessage } from '../../api/client'
+import { formatDateTime } from '../../lib/dates'
 import type { ContactMessage } from '../../lib/types'
 import { Confirm, PageHeader } from './ui/Fields'
 import { useToast } from './ui/Toast'
 
-function fmt(iso: string) { return new Date(iso + (iso.endsWith('Z') ? '' : 'Z')).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) }
 
 export default function AdminMessages() {
   const { toast } = useToast()
@@ -54,7 +54,7 @@ export default function AdminMessages() {
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-2"><span className={`text-sm truncate ${m.read ? 'text-fg' : 'font-bold text-fg'}`}>{m.name}</span>{m.starred && <Star size={12} className="text-accent-2 fill-current shrink-0" style={{ color: 'var(--accent-2)' }} />}</span>
                     <span className="block text-xs text-fg/80 truncate">{m.subject}</span>
-                    <span className="block text-[0.68rem] text-muted mt-0.5">{fmt(m.created_at)}</span>
+                    <span className="block text-[0.68rem] text-muted mt-0.5">{formatDateTime(m.created_at)}</span>
                   </span>
                 </button>
               ))}
@@ -67,7 +67,7 @@ export default function AdminMessages() {
                 <div className="min-w-0">
                   <h2 className="font-display font-bold text-xl text-fg">{sel.subject}</h2>
                   <p className="text-sm text-muted mt-1">From <span className="text-fg font-semibold">{sel.name}</span> · <a href={`mailto:${sel.email}`} className="text-accent-ink hover:underline">{sel.email}</a></p>
-                  <p className="text-xs text-muted mt-1">{fmt(sel.created_at)}</p>
+                  <p className="text-xs text-muted mt-1">{formatDateTime(sel.created_at)}</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => patch(sel, { starred: !sel.starred })} className={`btn btn-ghost btn-sm ${sel.starred ? 'text-accent-ink' : ''}`} title="Star"><Star size={14} className={sel.starred ? 'fill-current' : ''} /></button>

@@ -3,12 +3,9 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { Bell, Briefcase, Inbox, Info, CheckCheck } from 'lucide-react'
 import api from '../../../api/client'
+import { timeAgo } from '../../../lib/dates'
 import type { Notification } from '../../../lib/types'
 
-function ago(iso: string) {
-  const d = (Date.now() - new Date(iso + (iso.endsWith('Z') ? '' : 'Z')).getTime()) / 1000
-  if (d < 60) return 'just now'; if (d < 3600) return `${Math.floor(d / 60)}m ago`; if (d < 86400) return `${Math.floor(d / 3600)}h ago`; return `${Math.floor(d / 86400)}d ago`
-}
 const ICON: Record<string, React.ElementType> = { offer: Briefcase, message: Inbox }
 
 /** Dashboard bell: polls for new offers/messages, shows a dropdown and fires a browser notification when allowed. */
@@ -62,7 +59,7 @@ export default function NotificationBell() {
                 <li key={n.id}>
                   <Link to={n.link || '/admin'} onClick={() => markOne(n)} className={`flex gap-3 px-4 py-3 hover:bg-surface-2 ${n.read ? '' : 'bg-accent/5'}`}>
                     <span className={`mt-0.5 w-8 h-8 rounded-full grid place-items-center shrink-0 ${n.read ? 'bg-surface-2 text-muted' : 'bg-accent text-accent-fg'}`}><I size={14} /></span>
-                    <span className="min-w-0 flex-1"><span className={`block text-sm truncate ${n.read ? 'text-fg' : 'font-bold text-fg'}`}>{n.title}</span>{n.body && <span className="block text-xs text-muted truncate">{n.body}</span>}<span className="block text-[0.65rem] text-muted mt-0.5">{ago(n.created_at)}</span></span>
+                    <span className="min-w-0 flex-1"><span className={`block text-sm truncate ${n.read ? 'text-fg' : 'font-bold text-fg'}`}>{n.title}</span>{n.body && <span className="block text-xs text-muted truncate">{n.body}</span>}<span className="block text-[0.65rem] text-muted mt-0.5">{timeAgo(n.created_at)}</span></span>
                   </Link>
                 </li>
               ) })}

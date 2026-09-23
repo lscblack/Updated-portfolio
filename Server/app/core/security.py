@@ -60,6 +60,17 @@ def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def as_aware(dt: Optional[datetime]) -> Optional[datetime]:
+    """Treat a value read from the database as UTC when the column has no timezone.
+
+    Databases created before timestamps became timezone-aware store naive values; comparing
+    those with an aware `now_utc()` would raise TypeError.
+    """
+    if dt is None or dt.tzinfo is not None:
+        return dt
+    return dt.replace(tzinfo=timezone.utc)
+
+
 def create_access_token(admin_id: int, token_version: int, minutes: Optional[int] = None) -> tuple[str, datetime]:
     exp = now_utc() + timedelta(minutes=minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {

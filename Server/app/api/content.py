@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from sqlmodel import Session, func, select
 
 from ..core.mailer import send_offer_status
-from ..core.security import decrypt_text, encrypt_text
+from ..core.security import decrypt_text, encrypt_text, now_utc
 from ..core.store import cache_clear
 from ..db.session import get_session
 from ..models import (
@@ -87,7 +87,7 @@ def patch_settings(payload: dict, request: Request, session: Session = Depends(g
     data = _validate(SiteSettingsBase, merged)
     for k, v in data.items():
         setattr(row, k, v)
-    row.updated_at = datetime.utcnow()
+    row.updated_at = now_utc()
     audit(session, request, admin, "settings.update", detail={"fields": sorted(k for k in payload if k in SiteSettingsBase.model_fields)})
     session.add(row); session.commit(); session.refresh(row); _invalidate()
     return row
@@ -257,7 +257,7 @@ def patch_offer(offer_id: int, payload: dict, request: Request, tasks: Backgroun
         o.status = payload["status"]; changed.append("status")
         if payload.get("notify"):
             tasks.add_task(send_offer_status, o.email, o.name, o.title, o.status, str(payload.get("reply") or "")[:4000])
-    o.updated_at = datetime.utcnow()
+    o.updated_at = now_utc()
     if changed:
         audit(session, request, admin, "offer.update", target=str(offer_id), detail={"fields": changed, "status": o.status})
     session.add(o); session.commit(); session.refresh(o)

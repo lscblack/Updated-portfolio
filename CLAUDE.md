@@ -3,7 +3,11 @@
 - Frontend in `Clients/` (pnpm, Vite 8, Tailwind 4, framer-motion 12, React Compiler via babel preset).
   Typecheck with `npx tsc -b`; lint with `npx eslint .` — `react-hooks/refs` violations are real bugs under
   the compiler, `set-state-in-effect` is a warning.
-- Backend in `Server/` runs in the conda env `fastapi_setup` (`/home/lscblack/miniconda3/envs/fastapi_setup/bin`).
+- Backend in `Server/` runs in the conda env `fastapi_setup` (`/home/lscblack/miniconda3/envs/fastapi_setup/bin`)
+  locally; in production `deploy.sh` builds a dedicated `.venv` instead so shared envs are not mutated.
+  `requirements.txt` uses version *ranges* — validate changes with a clean install, not just the dev env
+  (sqlmodel >=0.0.25 needs pydantic >=2.11, and newer SQLModel stores `TIMESTAMP WITH TIME ZONE`, so all
+  model timestamps must use the aware `app/models/base.py:utcnow`).
   Local dev uses port 8020 (8000 belongs to another project). PostgreSQL on 127.0.0.1, database `lscblack_portfolio`.
 - Theme, fonts and all content live in the database (`site_settings`, `about_content`, collections); never
   hardcode content in components — read it from `useSite()`.

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Inbox, Briefcase, Route, FolderKanban, Cpu, GraduationCap, Heart, Compass, Award, Images, Activity, RefreshCw, Palette, Globe } from 'lucide-react'
 import api, { errorMessage } from '../../api/client'
+import { timeAgo } from '../../lib/dates'
 import { useSite } from '../../contexts/SiteContext'
 import { PageHeader, Card } from './ui/Fields'
 import { useToast } from './ui/Toast'
@@ -16,10 +17,6 @@ const TILES = [
   { key: 'activities', label: 'Life', icon: Heart }, { key: 'interests', label: 'Interests', icon: Compass },
 ]
 
-function ago(iso: string) {
-  const d = (Date.now() - new Date(iso + (iso.endsWith('Z') ? '' : 'Z')).getTime()) / 1000
-  if (d < 60) return 'just now'; if (d < 3600) return `${Math.floor(d / 60)}m ago`; if (d < 86400) return `${Math.floor(d / 3600)}h ago`; return `${Math.floor(d / 86400)}d ago`
-}
 
 export default function AdminOverview() {
   const [ov, setOv] = useState<Overview | null>(null)
@@ -50,7 +47,7 @@ export default function AdminOverview() {
         </Link>
         <div className="card p-5 flex items-center gap-4">
           <span className={`w-11 h-11 rounded-full grid place-items-center ${health ? 'bg-emerald-500/15 text-emerald-500' : health === false ? 'bg-red-500/15 text-red-500' : 'bg-surface-2 text-muted'}`}><Activity size={18} /></span>
-          <div><p className="font-display text-lg font-extrabold text-fg">{health ? 'API online' : health === false ? 'API offline' : 'Checking'}</p><p className="text-xs text-muted">{ov?.settings_updated_at ? `settings saved ${ago(ov.settings_updated_at)}` : 'PostgreSQL-backed'}</p></div>
+          <div><p className="font-display text-lg font-extrabold text-fg">{health ? 'API online' : health === false ? 'API offline' : 'Checking'}</p><p className="text-xs text-muted">{ov?.settings_updated_at ? `settings saved ${timeAgo(ov.settings_updated_at)}` : 'PostgreSQL-backed'}</p></div>
         </div>
       </div>
 
@@ -79,7 +76,7 @@ export default function AdminOverview() {
             {(ov?.recent_activity ?? []).map(a => (
               <li key={a.id} className="flex items-start gap-3 text-sm">
                 <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
-                <div className="min-w-0 flex-1"><p className="font-mono text-xs text-fg truncate">{a.action}{a.target ? ` #${a.target}` : ''}</p><p className="text-[0.68rem] text-muted">{ago(a.created_at)}</p></div>
+                <div className="min-w-0 flex-1"><p className="font-mono text-xs text-fg truncate">{a.action}{a.target ? ` #${a.target}` : ''}</p><p className="text-[0.68rem] text-muted">{timeAgo(a.created_at)}</p></div>
               </li>
             ))}
             {ov && !ov.recent_activity.length && <li className="text-sm text-muted">No activity yet.</li>}

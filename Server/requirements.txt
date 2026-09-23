@@ -1,17 +1,24 @@
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-gunicorn==22.0.0
-sqlmodel==0.0.38
-SQLAlchemy==2.0.36
-psycopg[binary]==3.2.3
-pydantic==2.10.4
-pydantic-settings==2.7.0
-email-validator==2.2.0
-python-jose[cryptography]==3.5.0
-argon2-cffi==25.1.0
-cryptography==42.0.7
-redis==5.0.4
-httpx==0.27.0
-pillow==11.2.1
-python-multipart==0.0.20
-python-dotenv==1.0.1
+# Version ranges (not exact pins) so the install adapts to the environment it lands in
+# and does not churn packages shared with other applications.
+fastapi>=0.115,<0.121
+uvicorn[standard]>=0.34,<0.40
+gunicorn>=22,<24
+
+# sqlmodel >=0.0.25 requires pydantic >=2.11
+sqlmodel>=0.0.25,<0.1
+SQLAlchemy>=2.0.30,<2.1
+psycopg[binary]>=3.2,<4
+
+pydantic>=2.11,<3
+pydantic-settings>=2.6,<3
+email-validator>=2.2,<3
+
+python-jose[cryptography]>=3.3,<4
+argon2-cffi>=23,<26
+cryptography>=42,<47
+
+redis>=5,<7
+httpx>=0.27,<0.30
+pillow>=10,<12
+python-multipart>=0.0.20,<0.1
+python-dotenv>=1,<2

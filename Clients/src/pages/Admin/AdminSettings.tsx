@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Loader2, Save, Eye, EyeOff, LogOut, ShieldCheck, KeyRound, History } from 'lucide-react'
 import api, { errorMessage } from '../../api/client'
+import { formatDateTime } from '../../lib/dates'
 import { useAuth, type AdminInfo } from '../../contexts/AuthContext'
 import type { AuditEntry } from '../../lib/types'
 import { Card, Field, PageHeader, TextInput } from './ui/Fields'
 import { useToast } from './ui/Toast'
 
-function fmt(iso: string) { return new Date(iso + (iso.endsWith('Z') ? '' : 'Z')).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) }
 
 export default function AdminSettings() {
   const { admin, logout, setSession } = useAuth()
@@ -38,7 +38,7 @@ export default function AdminSettings() {
       <PageHeader title="Security" description="Your administrator account and the audit trail." />
       <div className="grid lg:grid-cols-[1fr_1fr] gap-6 items-start">
         <div className="space-y-6">
-          <Card title="Account" description={`Signed in as ${admin?.email}${admin?.last_login_at ? ` · last sign-in ${fmt(admin.last_login_at)}` : ''}`}>
+          <Card title="Account" description={`Signed in as ${admin?.email}${admin?.last_login_at ? ` · last sign-in ${formatDateTime(admin.last_login_at)}` : ''}`}>
             <form onSubmit={submit} className="space-y-4">
               <Field label="Current password" hint="Required for any change">
                 <div className="relative"><TextInput type={show ? 'text' : 'password'} autoComplete="current-password" required value={form.current_password} onChange={v => setForm(f => ({ ...f, current_password: v }))} /><button type="button" onClick={() => setShow(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted">{show ? <EyeOff size={14} /> : <Eye size={14} />}</button></div>
@@ -65,7 +65,7 @@ export default function AdminSettings() {
               <li key={a.id} className="px-2 py-2.5 flex items-start gap-3 text-sm">
                 <History size={13} className="mt-1 text-muted shrink-0" />
                 <div className="min-w-0 flex-1"><p className="font-mono text-xs text-fg">{a.action}{a.target ? <span className="text-muted"> #{a.target}</span> : null}</p>{a.detail && <p className="text-[0.68rem] text-muted truncate">{JSON.stringify(a.detail)}</p>}</div>
-                <span className="text-[0.68rem] text-muted shrink-0">{fmt(a.created_at)}</span>
+                <span className="text-[0.68rem] text-muted shrink-0">{formatDateTime(a.created_at)}</span>
               </li>
             ))}
             {!audit.length && <li className="py-6 text-sm text-muted text-center">No entries yet.</li>}

@@ -6,6 +6,8 @@ from typing import Optional
 
 from sqlmodel import Field, SQLModel
 
+from .base import utcnow
+
 
 class AdminUser(SQLModel, table=True):
     __tablename__ = "admin_user"
@@ -20,4 +22,4 @@ class AdminUser(SQLModel, table=True):
     last_login_at: Optional[datetime] = None
     last_login_ip: Optional[str] = Field(default=None, max_length=64)
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utcnow)

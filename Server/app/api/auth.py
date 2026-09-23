@@ -11,8 +11,8 @@ from sqlmodel import Session, select
 from ..core.config import settings
 from ..core.mailer import send_otp_email
 from ..core.security import (
-    constant_eq, create_access_token, generate_otp, hash_code, hash_ip, hash_password,
-    needs_rehash, password_strength_error, verify_password,
+    as_aware, constant_eq, create_access_token, generate_otp, hash_code, hash_ip, hash_password,
+    needs_rehash, now_utc, password_strength_error, verify_password,
 )
 from ..db.session import get_session
 from ..models import AdminUser, LoginChallenge
@@ -40,10 +40,11 @@ def _admin_public(a: AdminUser) -> dict:
 def login(body: LoginRequest, request: Request, tasks: BackgroundTasks, session: Session = Depends(get_session)):
     email = body.email.lower().strip()
     admin = session.exec(select(AdminUser).where(AdminUser.email == email)).first()
-    now = datetime.utcnow()
+    now = now_utc()
 
-    if admin and admin.locked_until and admin.locked_until > now:
-        wait = int((admin.locked_until - now).total_seconds() // 60) + 1
+    locked_until = as_aware(admin.locked_until) if admin else None
+    if locked_until and locked_until > now:
+        wait = int((locked_until - now).total_seconds() // 60) + 1
         raise HTTPException(status.HTTP_423_LOCKED, f"Account temporarily locked. Try again in {wait} minute(s).")
 
     if not admin or not admin.is_active or not verify_password(body.password, admin.password_hash):
@@ -71,7 +72,7 @@ def login(body: LoginRequest, request: Request, tasks: BackgroundTasks, session:
     session.add(LoginChallenge(
         id=challenge_id, admin_id=admin.id, code_hash=hash_code(code, challenge_id),
         ip_hash=hash_ip(client_ip(request)),
-        expires_at=datetime.utcnow() + timedelta(minutes=settings.OTP_EXPIRE_MINUTES),
+        expires_at=now_utc() + timedelta(minutes=settings.OTP_EXPIRE_MINUTES),
     ))
     audit(session, request, admin, "login.password_ok")
     session.add(admin)
@@ -91,8 +92,8 @@ def login(body: LoginRequest, request: Request, tasks: BackgroundTasks, session:
 @router.post("/verify", response_model=TokenResponse, dependencies=[Depends(rate_limited("verify"))])
 def verify(body: VerifyRequest, request: Request, session: Session = Depends(get_session)):
     ch = session.get(LoginChallenge, body.challenge_id)
-    now = datetime.utcnow()
-    if not ch or ch.consumed or ch.expires_at < now:
+    now = now_utc()
+    if not ch or ch.consumed or (as_aware(ch.expires_at) or now) < now:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "This sign-in attempt has expired. Start again.")
     admin = session.get(AdminUser, ch.admin_id)
     if not admin or not admin.is_active:

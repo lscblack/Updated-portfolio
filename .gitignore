@@ -1,0 +1,9 @@
+.venv/
+.deploy/
+Server/.env
+Server/.env.production
+Server/uploads/
+__pycache__/
+*.pyc
+node_modules/
+dist/

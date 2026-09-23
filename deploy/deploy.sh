@@ -4,7 +4,8 @@
 #
 #  • Web   : https://lscblack.tech (+ www → apex)  → nginx serving Clients/dist, proxying /api and /uploads
 #  • API   : https://api.lscblack.tech               → gunicorn/uvicorn on a free local port (systemd: lscblack-api)
-#  • Code  : deployed in place (this checkout; override with APP_DIR=…)  • Python: conda env "fastapi_setup" • DB: PostgreSQL
+#  • Code  : deployed in place (this checkout; override with APP_DIR=…)  • DB: PostgreSQL
+#  • Python: its own .venv, built on the "fastapi_setup" conda env (or --shared-env to use that env directly)
 #
 #  Usage (on the server, as a sudoer):
 #     sudo bash deploy/deploy.sh                 # full install / update (idempotent)
@@ -15,6 +16,8 @@
 #                                                # server hosts other apps and apt triggers needrestart)
 #     sudo bash deploy/deploy.sh --set-db-password   # allow changing the password of an EXISTING database role
 #                                                # (off by default — other apps on this server may use that role)
+#     sudo bash deploy/deploy.sh --shared-env        # install the Python deps into the conda env itself instead of
+#                                                # the app's own .venv (affects every service sharing that env)
 #
 #  Scope: only lscblack-api.service, the nginx site files for our domains (nginx is *reloaded*, never
 #  restarted) and the PostgreSQL role password from .env are touched. No other service is restarted.
@@ -39,11 +42,11 @@ CERTBOT_EMAIL="${CERTBOT_EMAIL:-tech@nexventures.net}"
 BACKEND_DIR="Server"
 FRONTEND_DIR="Clients"
 STATE_DIR="$APP_DIR/.deploy"
-DO_BACKEND=1; DO_FRONTEND=1; DO_CERTBOT=1; INSTALL_PKGS=0; SET_DB_PASSWORD=0
+DO_BACKEND=1; DO_FRONTEND=1; DO_CERTBOT=1; INSTALL_PKGS=0; SET_DB_PASSWORD=0; SHARED_ENV=0
 for a in "$@"; do case "$a" in
   --backend-only) DO_FRONTEND=0;; --frontend-only) DO_BACKEND=0;; --no-certbot) DO_CERTBOT=0;; --install-packages) INSTALL_PKGS=1;;
-  --set-db-password) SET_DB_PASSWORD=1;; --verbose|-v) set -x;;
-  -h|--help) sed -n 2,18p "$0"; exit 0;; *) echo "unknown option $a"; exit 1;; esac; done
+  --set-db-password) SET_DB_PASSWORD=1;; --shared-env) SHARED_ENV=1;; --verbose|-v) set -x;;
+  -h|--help) sed -n 2,24p "$0"; exit 0;; *) echo "unknown option $a"; exit 1;; esac; done
 
 apt_install() {
   ((INSTALL_PKGS)) || die "missing: $* — install them yourself (apt-get install $*) or rerun with --install-packages"
@@ -178,11 +181,45 @@ done
 if [[ -z "$PYBIN" ]]; then for d in /home/*/miniconda3 /home/*/anaconda3 /root/miniconda3 /root/anaconda3; do
   [[ -x "$d/envs/$CONDA_ENV/bin/python" ]] && { PYBIN="$d/envs/$CONDA_ENV/bin"; break; }; done; fi
 [[ -n "$PYBIN" ]] || die "conda env '$CONDA_ENV' not found — create it: conda create -n $CONDA_ENV python=3.11"
+BASE_PY="$PYBIN/python"
+ok "base interpreter: $BASE_PY ($("$BASE_PY" --version 2>&1))"
+
+# By default the application gets its own virtualenv instead of installing into the conda env,
+# which is typically shared with other services on this host — installing there would upgrade
+# their FastAPI/pydantic/SQLModel too. Use --shared-env to install into the conda env anyway.
+if (( SHARED_ENV )); then
+  echo "   installing into the shared environment $PYBIN — other applications using it get these versions too"
+else
+  VENV_DIR="$APP_DIR/.venv"
+  VENV_BASE="$BASE_PY"
+  # an interpreter inside a private home (/root, /home/x) cannot be executed by the service user,
+  # and a virtualenv built on it inherits that; prefer the system python in that case
+  if ! sudo -u "$RUN_USER" test -x "$BASE_PY" 2>/dev/null; then
+    # `python3` on PATH may itself be the conda one inside /root, so try the real system paths first
+    for cand in /usr/bin/python3 /usr/local/bin/python3 "$(command -v python3 || true)"; do
+      [[ -n "$cand" && -x "$cand" ]] || continue
+      sudo -u "$RUN_USER" test -x "$cand" 2>/dev/null || continue
+      "$cand" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null || continue
+      VENV_BASE="$cand"
+      log "$BASE_PY is not readable by $RUN_USER — building the virtualenv on $cand ($("$cand" --version 2>&1))"
+      break
+    done
+  fi
+  if [[ ! -x "$VENV_DIR/bin/python" ]]; then
+    "$VENV_BASE" -m venv "$VENV_DIR" 2>/dev/null || {
+      command -v apt-get >/dev/null && apt_install python3-venv
+      "$VENV_BASE" -m venv "$VENV_DIR" || die "could not create a virtualenv at $VENV_DIR with $VENV_BASE"
+    }
+    ok "created virtualenv $VENV_DIR"
+  fi
+  PYBIN="$VENV_DIR/bin"
+fi
 echo "$PYBIN" > "$STATE_DIR/pybin"
 ok "python: $PYBIN/python ($("$PYBIN/python" --version 2>&1))"
 if ! sudo -u "$RUN_USER" test -x "$PYBIN/python" 2>/dev/null; then
   echo "   $RUN_USER cannot execute $PYBIN/python (private home directory) — the service will run as root instead."
-  echo "   To keep www-data, move the env out of the home dir: conda create -p /opt/conda-envs/$CONDA_ENV --clone $CONDA_ENV"
+  echo "   To keep $RUN_USER, put the interpreter outside a home directory, e.g.:"
+  echo "       conda create -p /opt/conda-envs/$CONDA_ENV --clone $CONDA_ENV"
   RUN_USER=root
 fi
 if ((DO_BACKEND)); then

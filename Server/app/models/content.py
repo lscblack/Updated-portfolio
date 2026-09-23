@@ -8,6 +8,8 @@ from typing import List, Optional
 from sqlalchemy import Column, JSON, Text
 from sqlmodel import Field, SQLModel
 
+from .base import utcnow
+
 
 # ── site-wide settings (singleton, id=1) ───────────────────────────────────
 class SiteSettingsBase(SQLModel):
@@ -47,7 +49,7 @@ class SiteSettingsBase(SQLModel):
 class SiteSettings(SiteSettingsBase, table=True):
     __tablename__ = "site_settings"
     id: Optional[int] = Field(default=None, primary_key=True)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
 
 
 # ── about (singleton, id=1) ────────────────────────────────────────────────
@@ -215,8 +217,8 @@ class Offer(SQLModel, table=True):
     user_agent: str = Field(default="", max_length=300)
     read: bool = Field(default=False)
     starred: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    updated_at: datetime = Field(default_factory=utcnow)
 
 
 class Notification(SQLModel, table=True):
@@ -230,7 +232,7 @@ class Notification(SQLModel, table=True):
     link: str = Field(default="", max_length=200)
     ref_id: Optional[int] = None
     read: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
 
 
 class ContactMessage(SQLModel, table=True):
@@ -245,4 +247,4 @@ class ContactMessage(SQLModel, table=True):
     user_agent: str = Field(default="", max_length=300)
     read: bool = Field(default=False)
     starred: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime = Field(default_factory=utcnow, index=True)

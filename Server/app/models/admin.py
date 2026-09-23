@@ -7,6 +7,8 @@ from typing import Optional
 from sqlalchemy import Column, JSON, Text
 from sqlmodel import Field, SQLModel
 
+from .base import utcnow
+
 
 class LoginChallenge(SQLModel, table=True):
     """Second factor of the sign-in flow: a hashed one-time code tied to an admin + client."""
@@ -19,7 +21,7 @@ class LoginChallenge(SQLModel, table=True):
     consumed: bool = Field(default=False)
     ip_hash: str = Field(default="", max_length=64)
     expires_at: datetime
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utcnow)
 
 
 class AuditLog(SQLModel, table=True):
@@ -31,7 +33,7 @@ class AuditLog(SQLModel, table=True):
     target: str = Field(default="", max_length=160)
     detail: Optional[dict] = Field(default=None, sa_column=Column(JSON))
     ip_hash: str = Field(default="", max_length=64)
-    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
 
 
 class Upload(SQLModel, table=True):
@@ -46,4 +48,4 @@ class Upload(SQLModel, table=True):
     height: Optional[int] = None
     kind: str = Field(default="image", max_length=32)
     url: str = Field(default="", sa_column=Column(Text))
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utcnow)
