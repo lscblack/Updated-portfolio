@@ -60,18 +60,39 @@ emailed (accounts listed in `OTP_BYPASS_EMAIL` may also use `OTP_BYPASS_CODE`).
 
 ## Deploy (Ubuntu + systemd + nginx + certbot)
 
-DNS: `lscblack.tech`, `www.lscblack.tech` and `api.lscblack.tech` → server IP. Then on the server:
+DNS first: `lscblack.tech`, `www.lscblack.tech` and `api.lscblack.tech` → the server IP. Then, on the server:
 
 ```bash
-git clone <repo> && cd Updated-portfolio
-cp Server/.env.example Server/.env.production    # fill in DB_PASSWORD, SMTP, admin, JWT_SECRET
-sudo bash deploy/deploy.sh                       # idempotent; add --install-packages the first time if tools are missing
-lsc status | lsc logs | lsc update | lsc backup   # afterwards
+cd /var/www/Updated-portfolio          # wherever the repo is checked out — it deploys in place
+
+cp Server/.env.production.example Server/.env.production
+nano Server/.env.production            # DB_USER/DB_PASSWORD, SMTP, DEFAULT_ADMIN_* (secrets are generated if blank)
+
+# the Python environment (once):  conda create -n fastapi_setup python=3.11
+sudo bash deploy/deploy.sh             # add --install-packages the first time if nginx/psql/node are missing
 ```
 
-`deploy.sh` syncs the code to `/var/www/lscblack-portfolio`, forces production values in `.env`
-(APP_ENV, CORS, HTTPS, media URL, generated secrets), sets the PostgreSQL role password, installs Python
-deps into the `fastapi_setup` conda env, runs `prestart.py`, writes and starts `lscblack-api.service`,
-builds the SPA, renders the nginx sites (www → apex, `/api` + `/uploads` proxied same-origin) and requests
+`APP_DIR` defaults to the checkout the script lives in, so nothing is copied elsewhere. Override it
+(`sudo APP_DIR=/srv/portfolio bash deploy/deploy.sh`) to sync the code to a different directory instead,
+and `CONDA_ENV=/root/miniconda3` to run against a conda installation's base environment.
+
+Afterwards: `lsc status` · `lsc logs` · `lsc update` · `lsc build` · `lsc backup` · `lsc cert` · `lsc env` · `lsc where`.
+The `lsc` command reads `/etc/lscblack-portfolio.conf`, so it works from any directory.
+
+**The database is created automatically.** `prestart.py` runs before every service start (and inside
+`deploy.sh`): it waits for PostgreSQL, creates the database if it is missing, creates any new tables and
+columns, and seeds the default content plus the administrator account — all idempotent, so restarts and
+redeploys are safe. A dedicated role (`DB_USER=lscblack`) is created by `deploy.sh` with `LOGIN CREATEDB`
+if it does not exist yet.
+
+What `deploy.sh` does, in order: place the code (in place by default) → force production values into
+`.env` (APP_ENV, CORS, HTTPS, media URL, generated `JWT_SECRET`/`DATA_ENCRYPTION_KEY`, cleared captcha and
+OTP bypass) → ensure the database role → install Python deps into the `fastapi_setup` conda env → run
+`prestart.py` → write and start `lscblack-api.service` (gunicorn + uvicorn workers on a private port) →
+build the SPA → render the nginx sites (`www` → apex, `/api` and `/uploads` proxied same-origin) → request
 Let's Encrypt certificates. Only this project's service and site files are touched; nginx is reloaded,
 never restarted.
+
+Safety rails: it refuses to start without a reviewed `.env.production`, refuses placeholder or short
+database passwords, and never changes the password of an **existing** database role (which other apps on
+the server may share) unless you pass `--set-db-password`.

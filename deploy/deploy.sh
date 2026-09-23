@@ -4,7 +4,7 @@
 #
 #  • Web   : https://lscblack.tech (+ www → apex)  → nginx serving Clients/dist, proxying /api and /uploads
 #  • API   : https://api.lscblack.tech               → gunicorn/uvicorn on a free local port (systemd: lscblack-api)
-#  • Code  : /var/www/lscblack-portfolio  • Python: conda env "fastapi_setup" • DB: PostgreSQL
+#  • Code  : deployed in place (this checkout; override with APP_DIR=…)  • Python: conda env "fastapi_setup" • DB: PostgreSQL
 #
 #  Usage (on the server, as a sudoer):
 #     sudo bash deploy/deploy.sh                 # full install / update (idempotent)
@@ -13,6 +13,8 @@
 #     sudo bash deploy/deploy.sh --no-certbot    # don't touch TLS certificates
 #     sudo bash deploy/deploy.sh --install-packages  # allow apt-get for missing tools (off by default: this
 #                                                # server hosts other apps and apt triggers needrestart)
+#     sudo bash deploy/deploy.sh --set-db-password   # allow changing the password of an EXISTING database role
+#                                                # (off by default — other apps on this server may use that role)
 #
 #  Scope: only lscblack-api.service, the nginx site files for our domains (nginx is *reloaded*, never
 #  restarted) and the PostgreSQL role password from .env are touched. No other service is restarted.
@@ -21,7 +23,12 @@
 set -Eeuo pipefail
 trap 'printf "\e[1;31m✖ deploy failed at line %s: %s\e[0m\n" "$LINENO" "$BASH_COMMAND" >&2; echo "   (run again with --verbose for a full trace; lsc logs shows the API journal)"' ERR
 
-APP_DIR="${APP_DIR:-/var/www/lscblack-portfolio}"
+# Deploys in place by default: the checkout this script lives in is the application directory.
+# Set APP_DIR=/somewhere/else to have the code synced to a different location instead.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SRC_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+APP_DIR="${APP_DIR:-$SRC_DIR}"
+CONF_FILE=/etc/lscblack-portfolio.conf
 CONDA_ENV="${CONDA_ENV:-fastapi_setup}"
 API_DOMAIN="${API_DOMAIN:-api.lscblack.tech}"
 WEB_DOMAIN="${WEB_DOMAIN:-lscblack.tech}"
@@ -32,9 +39,10 @@ CERTBOT_EMAIL="${CERTBOT_EMAIL:-tech@nexventures.net}"
 BACKEND_DIR="Server"
 FRONTEND_DIR="Clients"
 STATE_DIR="$APP_DIR/.deploy"
-DO_BACKEND=1; DO_FRONTEND=1; DO_CERTBOT=1; INSTALL_PKGS=0
+DO_BACKEND=1; DO_FRONTEND=1; DO_CERTBOT=1; INSTALL_PKGS=0; SET_DB_PASSWORD=0
 for a in "$@"; do case "$a" in
-  --backend-only) DO_FRONTEND=0;; --frontend-only) DO_BACKEND=0;; --no-certbot) DO_CERTBOT=0;; --install-packages) INSTALL_PKGS=1;; --verbose|-v) set -x;;
+  --backend-only) DO_FRONTEND=0;; --frontend-only) DO_BACKEND=0;; --no-certbot) DO_CERTBOT=0;; --install-packages) INSTALL_PKGS=1;;
+  --set-db-password) SET_DB_PASSWORD=1;; --verbose|-v) set -x;;
   -h|--help) sed -n 2,18p "$0"; exit 0;; *) echo "unknown option $a"; exit 1;; esac; done
 
 apt_install() {
@@ -50,8 +58,6 @@ echo "   app dir : $APP_DIR      conda env: $CONDA_ENV"
 echo "   web     : https://$WEB_DOMAIN  (https://$WWW_DOMAIN → apex)"
 echo "   api     : https://$API_DOMAIN"
 echo
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SRC_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # ── 0. code in place ────────────────────────────────────────────────────────
 mkdir -p "$APP_DIR" "$STATE_DIR"
@@ -72,8 +78,13 @@ if [[ -f "$ENV_FILE" && -n "$PROD_ENV" ]] && grep -qE '^APP_ENV=development' "$E
   ok "Replaced development .env with .env.production (backup kept next to it)"
 fi
 if [[ ! -f "$ENV_FILE" ]]; then
-  if [[ -n "$PROD_ENV" ]]; then cp "$PROD_ENV" "$ENV_FILE"; else cp "$APP_DIR/$BACKEND_DIR/.env.example" "$ENV_FILE"; fi
-  ok "Created $ENV_FILE — review it if this is the first deploy"
+  [[ -n "$PROD_ENV" ]] || die "no $BACKEND_DIR/.env or $BACKEND_DIR/.env.production found.
+   Create it first — it holds the database password, SMTP login and the administrator account:
+       cp $BACKEND_DIR/.env.production.example $BACKEND_DIR/.env.production
+       nano $BACKEND_DIR/.env.production
+   The .env.example template is never used as-is: its placeholder values would be written to live services."
+  cp "$PROD_ENV" "$ENV_FILE"
+  ok "Created $ENV_FILE from $(basename "$PROD_ENV")"
 fi
 envget() { { grep -E "^$1=" "$ENV_FILE" || true; } | tail -1 | cut -d= -f2- | sed 's/^"//;s/"$//;s/^'"'"'//;s/'"'"'$//'; }
 envset() { if grep -qE "^$1=" "$ENV_FILE"; then sed -i "s|^$1=.*|$1=$2|" "$ENV_FILE"; else printf '%s=%s\n' "$1" "$2" >> "$ENV_FILE"; fi; }
@@ -102,6 +113,17 @@ if [[ -z "$DB_PASSWORD" ]]; then
   DB_PASSWORD="$(envget DATABASE_URL | sed -nE 's#^[a-z+]+://[^:]+:([^@]+)@.*#\1#p' | "$(command -v python3)" -c 'import sys,urllib.parse;print(urllib.parse.unquote(sys.stdin.read().strip()))')"
 fi
 [[ -n "$DB_PASSWORD" ]] || die "DB_PASSWORD is empty in $ENV_FILE — set DB_PASSWORD=... and rerun"
+case "$DB_PASSWORD" in
+  YourStrongPassword|REPLACE-ME*|changeme|change-this*|password|postgres)
+    die "DB_PASSWORD in $ENV_FILE is still the example placeholder ('$DB_PASSWORD').
+   Set a real password before deploying — this value would otherwise be written to a live database role." ;;
+esac
+(( ${#DB_PASSWORD} >= 10 )) || die "DB_PASSWORD in $ENV_FILE is shorter than 10 characters — use a stronger one"
+# a static one-time-password bypass must never be reachable in production
+if [[ -n "$(envget OTP_BYPASS_CODE)" && -z "${OTP_BYPASS_KEEP:-}" ]]; then
+  envset OTP_BYPASS_CODE ""
+  ok "Cleared OTP_BYPASS_CODE (the emailed code is now the only second factor; OTP_BYPASS_KEEP=1 keeps it)"
+fi
 # keep DATABASE_URL consistent with the DB_* parts
 envset DATABASE_URL "postgresql+psycopg://$DB_USER:$("$(command -v python3)" -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1],safe=""))' "$DB_PASSWORD")@$DB_HOST:$DB_PORT/$DB_NAME"
 ok "env file: $ENV_FILE (db user $DB_USER, db $DB_NAME @ $DB_HOST)"
@@ -117,26 +139,27 @@ done
 
 # ── 3. database role password (existing role only — the app creates the database) ──
 pg_try() { PGPASSWORD="$1" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -w -tAc "select 1" >/dev/null 2>&1; }
+pg_admin() { sudo -u postgres psql -w -tAc "select 1" >/dev/null 2>&1; }
 log "Checking PostgreSQL access for role '$DB_USER'"
 ESC_PW="${DB_PASSWORD//\'/\'\'}"
 if pg_try "$DB_PASSWORD"; then
   ok "role $DB_USER accepts DB_PASSWORD"
-elif sudo -u postgres psql -w -tAc "select 1" >/dev/null 2>&1; then
+elif pg_admin && [[ -z "$(sudo -u postgres psql -w -tAc "select 1 from pg_roles where rolname = '${DB_USER//\'/\'\'}'")" ]]; then
+  # the role does not exist yet: create a dedicated one (CREATEDB lets the app create its own database)
+  sudo -u postgres psql -w -qc "CREATE ROLE \"$DB_USER\" LOGIN CREATEDB PASSWORD '$ESC_PW';"
+  ok "created dedicated database role '$DB_USER' (LOGIN CREATEDB)"
+elif (( SET_DB_PASSWORD )) && pg_admin; then
   sudo -u postgres psql -w -qc "ALTER ROLE \"$DB_USER\" WITH PASSWORD '$ESC_PW';"
-  ok "password of role $DB_USER set from DB_PASSWORD"
+  ok "password of existing role $DB_USER changed to DB_PASSWORD (--set-db-password)"
 else
-  echo "   PostgreSQL asks for a password even for local admin access. Enter the CURRENT password of '$DB_USER' once:"
-  for attempt in 1 2 3; do
-    read -rs -p "   Current PostgreSQL password for $DB_USER: " CUR_PW; echo
-    if pg_try "$CUR_PW"; then
-      PGPASSWORD="$CUR_PW" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -w -qc "ALTER ROLE \"$DB_USER\" WITH PASSWORD '$ESC_PW';"
-      ok "password of role $DB_USER changed to DB_PASSWORD"; break
-    fi
-    echo "   ✖ that password was rejected"
-    (( attempt == 3 )) && die "could not authenticate to PostgreSQL as $DB_USER (check pg_hba.conf)"
-  done
+  die "role '$DB_USER' exists but rejects DB_PASSWORD from $ENV_FILE.
+   Other applications on this server may use that role, so the password is NOT changed automatically. Either:
+     • put that role's real password in $ENV_FILE (recommended), or
+     • use a dedicated role for this app: set DB_USER=lscblack in $ENV_FILE and rerun
+       (the role is created automatically), or
+     • rerun with --set-db-password to overwrite the password of '$DB_USER' (affects every app using it)."
 fi
-pg_try "$DB_PASSWORD" || die "PostgreSQL still rejects DB_PASSWORD for $DB_USER@$DB_HOST:$DB_PORT"
+pg_try "$DB_PASSWORD" || die "PostgreSQL still rejects DB_PASSWORD for $DB_USER@$DB_HOST:$DB_PORT (check pg_hba.conf allows md5/scram from 127.0.0.1)"
 ok "PostgreSQL connection OK; database '$DB_NAME' is created by the app if missing"
 REDIS_URL="$(envget REDIS_URL)"
 if [[ -n "$REDIS_URL" ]] && command -v redis-cli >/dev/null; then
@@ -274,7 +297,9 @@ fi
 
 # ── 11. management CLI ──────────────────────────────────────────────────────
 install -m 755 "$APP_DIR/deploy/lsc" /usr/local/bin/lsc
-echo -e "APP_DIR=$APP_DIR\nSERVICE=$SERVICE\nAPI_PORT=$API_PORT\nPYBIN=$PYBIN\nAPI_DOMAIN=$API_DOMAIN\nWEB_DOMAIN=$WEB_DOMAIN\nWWW_DOMAIN=$WWW_DOMAIN\nRUN_USER=$RUN_USER\nBACKEND_DIR=$BACKEND_DIR\nFRONTEND_DIR=$FRONTEND_DIR\nDB_NAME=$DB_NAME" > "$STATE_DIR/config"
+printf 'APP_DIR=%s\nSERVICE=%s\nAPI_PORT=%s\nPYBIN=%s\nAPI_DOMAIN=%s\nWEB_DOMAIN=%s\nWWW_DOMAIN=%s\nRUN_USER=%s\nBACKEND_DIR=%s\nFRONTEND_DIR=%s\nDB_NAME=%s\nDB_USER=%s\n' \
+  "$APP_DIR" "$SERVICE" "$API_PORT" "$PYBIN" "$API_DOMAIN" "$WEB_DOMAIN" "$WWW_DOMAIN" "$RUN_USER" "$BACKEND_DIR" "$FRONTEND_DIR" "$DB_NAME" "$DB_USER" > "$STATE_DIR/config"
+install -m 644 "$STATE_DIR/config" "$CONF_FILE"   # fixed path so `lsc` finds the deployment wherever it lives
 
 echo; ok "Deploy complete"
 scheme() { [[ -d "/etc/letsencrypt/live/$1" ]] && echo https || echo http; }
