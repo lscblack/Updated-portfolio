@@ -16,8 +16,8 @@ function sameOrigin(url: string): string {
 export default function Resume() {
   const { data, loading } = useSite()
   const { mode, toggle } = useTheme()
-  const [failed, setFailed] = useState(false)
   const [ready, setReady] = useState(false)
+  const [problem, setProblem] = useState<string | null>(null)
 
   const raw = data?.settings?.resume_url || ''
   const url = sameOrigin(raw)
@@ -25,12 +25,23 @@ export default function Resume() {
   const isPdf = /\.pdf(\?|#|$)/i.test(url) || url.startsWith('/uploads/')
 
   useEffect(() => { document.title = `${name} — Resume` }, [name])
-  // some browsers silently refuse to render a PDF frame; offer the download instead of an empty box
+
+  // Check the file really is there before embedding it: a missing or non-PDF file otherwise renders as a
+  // blank box with the browser's broken-document icon, which says nothing about what went wrong.
   useEffect(() => {
-    if (!isPdf || !url) return
-    const t = setTimeout(() => setReady(r => { if (!r) setFailed(true); return r }), 6000)
-    return () => clearTimeout(t)
-  }, [isPdf, url])
+    if (!url) return
+    setProblem(null); setReady(false)
+    let cancelled = false
+    fetch(url, { method: 'HEAD' })
+      .then(r => {
+        if (cancelled) return
+        if (!r.ok) { setProblem(`The file could not be loaded (HTTP ${r.status}).`); return }
+        const type = r.headers.get('content-type') || ''
+        if (isPdf && !type.includes('pdf')) setProblem(`The server returned "${type || 'an unknown type'}" instead of a PDF.`)
+      })
+      .catch(() => { if (!cancelled) setProblem('The file could not be reached — check that the API is running.') })
+    return () => { cancelled = true }
+  }, [url, isPdf])
 
   return (
     <div className="min-h-[100svh] bg-bg text-fg flex flex-col">
@@ -65,10 +76,24 @@ export default function Resume() {
               <Link to="/#contact" className="btn btn-outline btn-sm mt-6"><Mail size={13} /> Get in touch instead</Link>
             </div>
           </div>
+        ) : problem ? (
+          <div className="flex-1 grid place-items-center">
+            <div className="card p-8 sm:p-12 text-center max-w-lg">
+              <span className="w-14 h-14 rounded-full bg-red-500/15 text-red-500 grid place-items-center mx-auto"><AlertCircle size={24} /></span>
+              <h1 className="mt-5 font-display font-extrabold text-xl">The resume could not be displayed</h1>
+              <p className="mt-2 text-sm text-muted">{problem}</p>
+              <p className="mt-3 font-mono text-[0.7rem] text-muted break-all bg-surface-2/60 rounded-card-sm px-3 py-2">{raw}</p>
+              <p className="mt-3 text-sm text-muted">Re-upload the PDF in the dashboard under <span className="text-fg font-semibold">Site &amp; hero → Resume</span>.</p>
+              <div className="mt-6 flex items-center justify-center gap-2">
+                <a href={url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm"><ExternalLink size={13} /> Try opening it</a>
+                <Link to="/" className="btn btn-ghost btn-sm">Back to portfolio</Link>
+              </div>
+            </div>
+          </div>
         ) : isPdf ? (
           <div className="flex-1 flex flex-col">
             <div className="relative flex-1 min-h-[70svh] rounded-card border border-line overflow-hidden bg-white">
-              {!ready && !failed && (
+              {!ready && (
                 <div className="absolute inset-0 grid place-items-center bg-surface text-muted"><Loader2 className="animate-spin" /></div>
               )}
               <object data={`${url}#view=FitH&toolbar=1`} type="application/pdf" className="absolute inset-0 w-full h-full" onLoad={() => setReady(true)} aria-label={`${name} resume`}>
@@ -86,9 +111,7 @@ export default function Resume() {
                 </div>
               </object>
             </div>
-            {failed && !ready && (
-              <p className="mt-3 text-xs text-muted inline-flex items-center gap-2"><AlertCircle size={13} /> Taking a while to render — use Open or Download above if nothing appears.</p>
-            )}
+            <p className="mt-3 text-xs text-muted">Not rendering? Use <span className="text-fg">Open</span> or <span className="text-fg">Download</span> above — some browsers block inline PDFs.</p>
           </div>
         ) : (
           <div className="flex-1 grid place-items-center">
