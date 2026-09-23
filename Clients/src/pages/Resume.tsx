@@ -5,22 +5,13 @@ import { useSite } from '../contexts/SiteContext'
 import { useTheme } from '../contexts/ThemeContext'
 import BrandMark from '../components/ui/BrandMark'
 
-/** Uploaded files are also served on this origin (nginx proxies /uploads, Vite proxies it in dev).
- *  Using the relative path keeps the PDF same-origin, so framing is never blocked by CSP. */
-function sameOrigin(url: string): string {
-  if (!url) return ''
-  const i = url.indexOf('/uploads/')
-  return i >= 0 ? url.slice(i) : url
-}
-
 export default function Resume() {
   const { data, loading } = useSite()
   const { mode, toggle } = useTheme()
   const [ready, setReady] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
 
-  const raw = data?.settings?.resume_url || ''
-  const url = sameOrigin(raw)
+  const url = (data?.settings?.resume_url || '').trim()
   const name = data?.about?.name || 'Resume'
   const isPdf = /\.pdf(\?|#|$)/i.test(url) || url.startsWith('/uploads/')
 
@@ -34,12 +25,10 @@ export default function Resume() {
     let cancelled = false
     fetch(url, { method: 'HEAD' })
       .then(r => {
-        if (cancelled) return
-        if (!r.ok) { setProblem(`The file could not be loaded (HTTP ${r.status}).`); return }
-        const type = r.headers.get('content-type') || ''
-        if (isPdf && !type.includes('pdf')) setProblem(`The server returned "${type || 'an unknown type'}" instead of a PDF.`)
+        if (cancelled || r.type === 'opaque') return          // cross-origin: no usable status, just render
+        if (r.status >= 400) setProblem(`The file could not be loaded (HTTP ${r.status}).`)
       })
-      .catch(() => { if (!cancelled) setProblem('The file could not be reached — check that the API is running.') })
+      .catch(() => { /* CORS or offline: inconclusive, so let the viewer try */ })
     return () => { cancelled = true }
   }, [url, isPdf])
 
@@ -82,7 +71,7 @@ export default function Resume() {
               <span className="w-14 h-14 rounded-full bg-red-500/15 text-red-500 grid place-items-center mx-auto"><AlertCircle size={24} /></span>
               <h1 className="mt-5 font-display font-extrabold text-xl">The resume could not be displayed</h1>
               <p className="mt-2 text-sm text-muted">{problem}</p>
-              <p className="mt-3 font-mono text-[0.7rem] text-muted break-all bg-surface-2/60 rounded-card-sm px-3 py-2">{raw}</p>
+              <p className="mt-3 font-mono text-[0.7rem] text-muted break-all bg-surface-2/60 rounded-card-sm px-3 py-2">{url}</p>
               <p className="mt-3 text-sm text-muted">Re-upload the PDF in the dashboard under <span className="text-fg font-semibold">Site &amp; hero → Resume</span>.</p>
               <div className="mt-6 flex items-center justify-center gap-2">
                 <a href={url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm"><ExternalLink size={13} /> Try opening it</a>

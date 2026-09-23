@@ -15,8 +15,9 @@
 - Never cache single-use endpoints. `Cache-Control: public` on all of `/api/public/*` made the browser reuse
   one captcha id, so the second contact/offer submission always failed. Only `/api/public/site` is cached.
 - Uploaded files are served with `X-Frame-Options: DENY` by default, which blocks the resume `<object>`;
-  `/uploads/*` gets `frame-ancestors 'self' <frontend origins>` instead, and the viewer rewrites the URL to
-  the same-origin `/uploads/...` path (nginx and Vite both proxy it) so CSP never blocks it.
+  `/uploads/*` gets `frame-ancestors 'self' <frontend origins>` instead. Use media URLs exactly as stored
+  (absolute, MEDIA_BASE_URL) — an earlier rewrite to a same-origin `/uploads/...` path 404'd in production.
+  Reachability probes must be advisory: only a definite 4xx/5xx is an error, never a CORS/network failure.
 - An `<object>`/`<iframe>` has an intrinsic 150px height: `h-full` inside a flex parent collapses it —
   position it `absolute inset-0` instead.
 - `position: sticky` breaks if ANY ancestor has `overflow: hidden/clip` (this bit the Interests panel via

@@ -41,7 +41,7 @@ def create_app() -> FastAPI:
     app.add_middleware(GlobalRateLimitMiddleware)
     app.add_middleware(
         CORSMiddleware, allow_origins=settings.cors_origins, allow_credentials=False,
-        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_methods=["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", "X-Payload-Encryption", "X-Payload-Key", "X-Requested-With"],
         expose_headers=["X-Payload-Encryption", "Retry-After"], max_age=600,
     )
