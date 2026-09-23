@@ -66,7 +66,7 @@ export type Education = {
   note: string; tags: string[]; url: string; status: string; order: number; visible: boolean
 }
 export type Certification = { id?: number; title: string; issuer: string; grade: string; year: string; url: string; order: number; visible: boolean }
-export type Activity = { id?: number; label: string; icon: string; quote: string; order: number; visible: boolean }
+export type Activity = { id?: number; label: string; icon: string; quote: string; media_url: string; media_kind: 'image' | 'video' | string; caption: string; order: number; visible: boolean }
 export type Interest = { id?: number; title: string; icon: string; items: string[]; order: number; visible: boolean }
 
 export type SiteData = {

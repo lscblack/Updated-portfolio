@@ -6,6 +6,7 @@ import secrets
 from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi.responses import RedirectResponse
 from sqlmodel import Session, select
 
 from ..core.config import settings
@@ -67,6 +68,17 @@ def site(session: Session = Depends(get_session)):
 def health(session: Session = Depends(get_session)):
     session.exec(select(AdminUser.id).limit(1)).first()
     return {"ok": True, "env": settings.APP_ENV, "time": now_utc().isoformat()}
+
+
+@router.get("/og-image", include_in_schema=False)
+def og_image(session: Session = Depends(get_session)):
+    """Redirect to the current share image so the static meta tags never go stale."""
+    s = session.get(SiteSettings, 1)
+    a = session.get(AboutContent, 1)
+    url = (s.og_image if s else "") or (a.avatar_url if a else "") or ""
+    if not url:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No share image configured")
+    return RedirectResponse(url, status_code=status.HTTP_302_FOUND)
 
 
 @router.get("/handshake")

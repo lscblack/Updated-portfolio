@@ -118,13 +118,16 @@ export const COLLECTIONS: Record<string, CollectionDef> = {
   },
   activities: {
     name: 'activities', title: 'Life beyond code', singular: 'activity',
-    description: 'Hobbies and values, each with a short quote.',
+    description: 'Hobbies and values. Add a photo or short clip of you doing each one — the site reveals it as visitors scroll.',
     titleKey: 'label', subtitleKey: 'quote', badgeKey: 'icon',
-    blank: { label: '', icon: 'Sparkles', quote: '', visible: true },
+    blank: { label: '', icon: 'Sparkles', quote: '', media_url: '', media_kind: 'image', caption: '', visible: true },
     fields: [
       { key: 'label', label: 'Label', type: 'text' },
       { key: 'icon', label: 'Icon', type: 'icon' },
       { key: 'quote', label: 'Quote', type: 'textarea', span: 2 },
+      { key: 'media_url', label: 'Photo or clip of you doing it', type: 'image', span: 2, hint: 'Shown full-bleed beside the text. Upload a photo, or paste the URL of a short muted clip (.mp4/.webm) and set the kind to video.' },
+      { key: 'media_kind', label: 'Media kind', type: 'select', options: ['image', 'video'] },
+      { key: 'caption', label: 'Caption', type: 'text' },
       { key: 'visible', label: 'Visible on the site', type: 'boolean', span: 2 },
     ],
   },

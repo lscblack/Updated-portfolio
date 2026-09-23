@@ -59,9 +59,9 @@ def _site_settings() -> SiteSettings:
         id=1,
         site_name="Loue Sauveur Christian",
         logo_text="lsc",
-        seo_title="Loue Sauveur Christian | lscblack | Senior Software Engineer · Cybersecurity · ML · Rwanda",
-        seo_description="Senior Software Engineer specialising in cybersecurity, machine learning and full-stack development. Building secure, intelligent systems for Africa's digital future from Kigali, Rwanda.",
-        seo_keywords="Loue Sauveur Christian, lscblack, software engineer Rwanda, cybersecurity engineer Kigali, machine learning Rwanda, FastAPI, React, Flutter",
+        seo_title="Loue Sauveur Christian (lscblack) — Managing Director, Nexventures Ltd | Senior Software Engineer, Kigali Rwanda",
+        seo_description="Loue Sauveur Christian (lscblack) is the Managing Director of Nexventures Ltd and a Senior Software Engineer in Kigali, Rwanda. Software engineer at the National Land Authority and lead engineer on SafeLand Rwanda, specialising in cybersecurity, machine learning and secure full-stack systems.",
+        seo_keywords="Loue Sauveur Christian, lscblack, Christian Loue Sauveur, Nexventures Ltd, Nexventures managing director, SafeLand Rwanda, National Land Authority engineer, software engineer Rwanda, senior software engineer Kigali, cybersecurity engineer Rwanda, machine learning engineer Rwanda, FastAPI developer Africa, React developer Kigali, Flutter developer Rwanda, African Leadership University software engineering",
         canonical_url="https://lscblack.tech",
         og_image="https://avatars.githubusercontent.com/u/141139366?v=4",
         hero_kicker="Senior Software Engineer · Kigali, Rwanda",
@@ -94,7 +94,7 @@ def _site_settings() -> SiteSettings:
 def _about() -> AboutContent:
     return AboutContent(
         id=1,
-        name="Loue Sauveur Christian", role="Senior Software Engineer",
+        name="Loue Sauveur Christian", role="Managing Director & Senior Software Engineer",
         headline="Building systems that protect people, not just data.",
         headline_highlight="protect people",
         bio=[
@@ -107,8 +107,9 @@ def _about() -> AboutContent:
         gallery=["https://avatars.githubusercontent.com/u/141139366?v=4"],
         open_to=["MSc Cybersecurity programmes", "Research collaborations", "Engineering roles"],
         currently=[
-            {"role": "Senior Software Engineer", "org": "Nexventures Ltd", "url": "https://nexventures.rw"},
-            {"role": "Software Engineer Intern", "org": "National Land Authority", "url": "https://amakuru.lands.rw"},
+            {"role": "Managing Director & Senior Software Engineer", "org": "Nexventures Ltd", "url": "https://nexventures.rw"},
+            {"role": "Software Engineer (Professional Intern)", "org": "National Land Authority", "url": "https://amakuru.lands.rw"},
+            {"role": "Lead Engineer", "org": "SafeLand Rwanda", "url": "https://safeland.rw"},
             {"role": "Head Residential Advisor", "org": "African Leadership University", "url": "https://alueducation.com"},
         ],
         languages=["English", "French", "Kinyarwanda"],
@@ -131,8 +132,9 @@ JOURNEY = [
 ]
 
 EXPERIENCE = [
-    dict(title="Senior Software Engineer", company="Nexventures Ltd", company_url="https://nexventures.rw", location="Kigali, Rwanda", period="May 2025 – Present", job_type="Full-time", current=True, bullets=["Led web and mobile app development using FastAPI, PostgreSQL, React and Flutter", "Designed secure RESTful APIs with JWT auth, input validation and rate limiting", "Integrated AI/ML models into production pipelines; evaluated adversarial robustness", "Implemented CI/CD pipelines with security gates and automated testing", "Contributed to IoT embedded systems (Arduino) with device authentication", "Mentored junior engineers on secure coding practices and OWASP Top 10"], tags=["FastAPI", "React", "Flutter", "PostgreSQL", "Docker", "AI/ML", "IoT"]),
-    dict(title="Software Engineer Intern", company="National Land Authority (NLA)", company_url="https://amakuru.lands.rw", location="Kigali, Rwanda", period="Mar 2024 – Apr 2026", job_type="Internship", current=True, bullets=["Architected end-to-end TLS encryption protecting sensitive citizen land data nationwide", "Integrated Google Authenticator (TOTP-based MFA) for all administrative users", "Built responsive React + Redux Toolkit frontend for cross-device compatibility", "Hardened the Linux server environment applying the principle of least privilege", "Configured horizontal scaling to handle high-concurrency public traffic", "Deployed live at amakuru.lands.rw — accessible nationwide"], tags=["React", "Redux", "Linux", "MFA", "TLS", "Security", "Government"]),
+    dict(title="Managing Director & Senior Software Engineer", company="Nexventures Ltd", company_url="https://nexventures.rw", location="Kigali, Rwanda", period="May 2025 – Present", job_type="Full-time · Leadership", current=True, bullets=["Direct the company: strategy, client relationships, delivery planning and the engineering team",
+        "Led web and mobile app development using FastAPI, PostgreSQL, React and Flutter", "Designed secure RESTful APIs with JWT auth, input validation and rate limiting", "Integrated AI/ML models into production pipelines; evaluated adversarial robustness", "Implemented CI/CD pipelines with security gates and automated testing", "Contributed to IoT embedded systems (Arduino) with device authentication", "Mentored junior engineers on secure coding practices and OWASP Top 10"], tags=["FastAPI", "React", "Flutter", "PostgreSQL", "Docker", "AI/ML", "IoT"]),
+    dict(title="Software Engineer (Professional Intern)", company="National Land Authority (NLA)", company_url="https://amakuru.lands.rw", location="Kigali, Rwanda", period="Mar 2024 – Present", job_type="Professional Internship", current=True, bullets=["Architected end-to-end TLS encryption protecting sensitive citizen land data nationwide", "Integrated Google Authenticator (TOTP-based MFA) for all administrative users", "Built responsive React + Redux Toolkit frontend for cross-device compatibility", "Hardened the Linux server environment applying the principle of least privilege", "Configured horizontal scaling to handle high-concurrency public traffic", "Deployed live at amakuru.lands.rw — accessible nationwide"], tags=["React", "Redux", "Linux", "MFA", "TLS", "Security", "Government"]),
     dict(title="Head Residential Advisor", company="African Leadership University", company_url="https://alueducation.com", location="Kigali, Rwanda", period="Jan 2024 – May 2026", job_type="Leadership", current=True, bullets=["Managed sensitive student data with strict institutional data-protection compliance", "Led crisis management and conflict resolution across a large residential community", "Developed and ran leadership programmes and student welfare initiatives"], tags=["Leadership", "Data privacy", "Crisis management"]),
     dict(title="MERN & MySQL Trainer", company="Church of God TTS – School of Development", location="Kigali, Rwanda", period="Apr – May 2025", job_type="Contract", bullets=["Delivered MERN stack training with secure coding best practices to S6 students", "Covered environment variables, input sanitisation and SQL-injection prevention"], tags=["Teaching", "MERN", "Secure coding"]),
     dict(title="Website Development Coach", company="CODEJIKA", location="Kigali, Rwanda", period="Jan – May 2023", job_type="Part-time", bullets=["Delivered hands-on web development instruction in HTML, CSS, PHP and MySQL", "Designed training sessions that improved learners' grasp of web fundamentals"], tags=["Coaching", "HTML", "CSS", "PHP"]),

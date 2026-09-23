@@ -229,7 +229,9 @@ export function GalleryField({ value, onChange }: { value: string[]; onChange: (
     for (const f of Array.from(files)) {
       try { const fd = new FormData(); fd.append('file', f); const r = await api.post('/api/admin/uploads', fd, { headers: { 'Content-Type': 'multipart/form-data' } }); urls.push(r.data.url) } catch (e) { toast(`${f.name}: ${errorMessage(e)}`, 'error') }
     }
-    setBusy(false); if (urls.length) onChange([...value, ...urls])
+    setBusy(false)
+    // a newly uploaded portrait becomes the primary one — that is what 'change my picture' means
+    if (urls.length) onChange([...urls, ...value])
   }
   const move = (i: number, d: number) => { const j = i + d; if (j < 0 || j >= value.length) return; const v = [...value]; [v[i], v[j]] = [v[j], v[i]]; onChange(v) }
   return (
@@ -239,10 +241,11 @@ export function GalleryField({ value, onChange }: { value: string[]; onChange: (
           <div key={`${u}-${i}`} className="relative group aspect-square rounded-card-sm overflow-hidden bg-surface-2">
             <img src={u} alt="" className="w-full h-full object-cover" />
             {i === 0 && <span className="absolute top-1.5 left-1.5 tag !text-[0.6rem]">Primary</span>}
-            <div className="absolute inset-x-0 bottom-0 p-1.5 flex justify-between gap-1 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button type="button" onClick={() => move(i, -1)} className="text-white text-xs px-1.5" aria-label="Move left">←</button>
+            <div className="absolute inset-x-0 bottom-0 p-1.5 flex items-center justify-between gap-1 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button type="button" onClick={() => move(i, -1)} className="text-white text-xs px-1" aria-label="Move left">←</button>
+              {i !== 0 && <button type="button" onClick={() => onChange([value[i], ...value.filter((_, k) => k !== i)])} className="text-white text-[0.6rem] font-bold px-1" title="Use as primary">SET</button>}
               <button type="button" onClick={() => onChange(value.filter((_, k) => k !== i))} className="text-white" aria-label="Remove"><Trash2 size={13} /></button>
-              <button type="button" onClick={() => move(i, 1)} className="text-white text-xs px-1.5" aria-label="Move right">→</button>
+              <button type="button" onClick={() => move(i, 1)} className="text-white text-xs px-1" aria-label="Move right">→</button>
             </div>
           </div>
         ))}
@@ -251,7 +254,7 @@ export function GalleryField({ value, onChange }: { value: string[]; onChange: (
           <input id={id} type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={e => { if (e.target.files?.length) upload(e.target.files); e.target.value = '' }} />
         </label>
       </div>
-      <p className="field-hint">The site crossfades through these portraits. The first one is also used where a single image is needed.</p>
+      <p className="field-hint">The first image is your profile picture — used in the hero, About and social previews; the rest crossfade behind it. New uploads become primary automatically; hover an image and press SET to promote it.</p>
     </div>
   )
 }

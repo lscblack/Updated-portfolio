@@ -174,6 +174,9 @@ class ActivityBase(SQLModel):
     label: str = Field(max_length=80)
     icon: str = Field(default="Sparkles", max_length=40)
     quote: str = Field(default="", sa_column=Column(Text))
+    media_url: str = Field(default="", max_length=500)          # photo or short clip of the activity
+    media_kind: str = Field(default="image", max_length=16)     # image | video
+    caption: str = Field(default="", max_length=160)
     order: int = Field(default=0)
     visible: bool = Field(default=True)
 

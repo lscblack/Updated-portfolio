@@ -19,6 +19,10 @@
 #                                                # (off by default — other apps on this server may use that role)
 #     sudo bash deploy/deploy.sh --install-deps      # pip install Server/requirements.txt into the conda env
 #                                                # (off by default: the env is otherwise only verified)
+#     sudo bash deploy/deploy.sh --force-build       # rebuild the SPA even when the sources are unchanged
+#
+#  Re-running is cheap: the frontend build is skipped when nothing changed, the database, tables and seed
+#  data are only created when missing, certificates are reused, and the .env keeps the values you edited.
 #
 #  Scope: only lscblack-api.service, the nginx site files for our domains (nginx is *reloaded*, never
 #  restarted) and the PostgreSQL role password from .env are touched. No other service is restarted.
@@ -43,10 +47,10 @@ CERTBOT_EMAIL="${CERTBOT_EMAIL:-tech@nexventures.net}"
 BACKEND_DIR="Server"
 FRONTEND_DIR="Clients"
 STATE_DIR="$APP_DIR/.deploy"
-DO_BACKEND=1; DO_FRONTEND=1; DO_CERTBOT=1; INSTALL_PKGS=0; SET_DB_PASSWORD=0; INSTALL_DEPS=0
+DO_BACKEND=1; DO_FRONTEND=1; DO_CERTBOT=1; INSTALL_PKGS=0; SET_DB_PASSWORD=0; INSTALL_DEPS=0; FORCE_BUILD=0
 for a in "$@"; do case "$a" in
   --backend-only) DO_FRONTEND=0;; --frontend-only) DO_BACKEND=0;; --no-certbot) DO_CERTBOT=0;; --install-packages) INSTALL_PKGS=1;;
-  --set-db-password) SET_DB_PASSWORD=1;; --install-deps) INSTALL_DEPS=1;; --verbose|-v) set -x;;
+  --set-db-password) SET_DB_PASSWORD=1;; --install-deps) INSTALL_DEPS=1;; --force-build) FORCE_BUILD=1;; --verbose|-v) set -x;;
   -h|--help) sed -n 2,22p "$0"; exit 0;; *) echo "unknown option $a"; exit 1;; esac; done
 
 apt_install() {
@@ -273,6 +277,20 @@ if ((DO_FRONTEND)); then
     ((INSTALL_PKGS)) || die "Node.js 20+ is required to build the frontend (found: $(node -v 2>/dev/null || echo none)). Install it, or rerun with --install-packages, or build locally and rsync $FRONTEND_DIR/dist"
     log "Installing Node.js 22 (NodeSource)"; curl -fsSL https://deb.nodesource.com/setup_22.x | NEEDRESTART_SUSPEND=1 bash - >/dev/null; apt_install nodejs
   fi
+  # skip the rebuild when neither the sources nor the dependencies changed since the last deploy
+  BUILD_STAMP="$STATE_DIR/frontend.sha"
+  BUILD_SHA="$(
+    { find "$APP_DIR/$FRONTEND_DIR/src" "$APP_DIR/$FRONTEND_DIR/public" -type f -print0 2>/dev/null | sort -z | xargs -0 sha1sum 2>/dev/null
+      sha1sum "$APP_DIR/$FRONTEND_DIR/package.json" "$APP_DIR/$FRONTEND_DIR/pnpm-lock.yaml" "$APP_DIR/$FRONTEND_DIR/index.html" \
+              "$APP_DIR/$FRONTEND_DIR/vite.config.ts" 2>/dev/null
+    } | sha1sum | cut -d' ' -f1
+  )"
+  if ((! FORCE_BUILD)) && [[ -f "$BUILD_STAMP" && -d "$APP_DIR/$FRONTEND_DIR/dist" && "$(cat "$BUILD_STAMP")" == "$BUILD_SHA" ]]; then
+    ok "frontend unchanged since the last deploy — skipping the build (--force-build to rebuild)"
+    DO_FRONTEND=0
+  fi
+fi
+if ((DO_FRONTEND)); then
   log "Building frontend"
   PNPM="pnpm"; command -v pnpm >/dev/null || { command -v corepack >/dev/null && corepack enable pnpm >/dev/null 2>&1 || true; }
   command -v pnpm >/dev/null || PNPM="npx --yes pnpm@11"
@@ -282,6 +300,7 @@ if ((DO_FRONTEND)); then
       && CI=true $PNPM install --frozen-lockfile --reporter=silent \
       && CI=true $PNPM run build )
   chown -R "$RUN_USER:$RUN_USER" "$APP_DIR/$FRONTEND_DIR/dist"
+  echo "$BUILD_SHA" > "$BUILD_STAMP"
   ok "frontend built → $APP_DIR/$FRONTEND_DIR/dist"
 fi
 

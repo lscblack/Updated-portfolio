@@ -12,6 +12,11 @@
   (sqlmodel >=0.0.25 needs pydantic >=2.11, and newer SQLModel stores `TIMESTAMP WITH TIME ZONE`, so all
   model timestamps must use the aware `app/models/base.py:utcnow`).
   Local dev uses port 8020 (8000 belongs to another project). PostgreSQL on 127.0.0.1, database `lscblack_portfolio`.
+- `position: sticky` breaks if ANY ancestor has `overflow: hidden/clip` (this bit the Interests panel via
+  `html { overflow-x: clip }` and the Life panel via a section's `overflow-hidden`). Sticky columns also need
+  the grid row to stretch — never put `items-start` on a grid containing one.
+- Animate SVG *transforms* (scaleX/scaleY with `transformBox: fill-box`), not width/height attributes:
+  framer-motion resolves attribute keyframes before first paint and the browser rejects `width="undefined"`.
 - Theme, fonts and all content live in the database (`site_settings`, `about_content`, collections); never
   hardcode content in components — read it from `useSite()`.
 - Deploy with `deploy/deploy.sh` (domains lscblack.tech / www / api.lscblack.tech, service `lscblack-api`, CLI `lsc`).

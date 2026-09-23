@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import api from '../api/client'
 import { useTheme } from './ThemeContext'
 import type { SectionTitle, SiteData } from '../lib/types'
+import { applySeo } from '../lib/seo'
 
 interface SiteCtx {
   data: SiteData | null
@@ -39,19 +40,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { load() }, [load])
   useEffect(() => { if (data?.settings) setSiteTheme(data.settings.theme, data.settings.fonts) }, [data, setSiteTheme])
 
-  useEffect(() => {
-    if (!data?.settings) return
-    const s = data.settings
-    if (s.seo_title) document.title = s.seo_title
-    const set = (sel: string, attr: string, val: string) => { const el = document.querySelector(sel); if (el && val) el.setAttribute(attr, val) }
-    set('meta[name="description"]', 'content', s.seo_description)
-    set('meta[name="keywords"]', 'content', s.seo_keywords)
-    set('meta[property="og:title"]', 'content', s.seo_title)
-    set('meta[property="og:description"]', 'content', s.seo_description)
-    set('meta[property="og:image"]', 'content', s.og_image)
-    set('meta[name="twitter:image"]', 'content', s.og_image)
-    set('link[rel="canonical"]', 'href', s.canonical_url)
-  }, [data])
+  useEffect(() => { if (data) applySeo(data) }, [data])
 
   const sectionTitle = useCallback((key: string, fallback: SectionTitle) => {
     const t = data?.settings?.section_titles?.[key] ?? {}
