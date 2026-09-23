@@ -8,6 +8,7 @@ import { useSite } from '../../contexts/SiteContext'
 import { ToastProvider } from './ui/Toast'
 import api from '../../api/client'
 import NotificationBell from './ui/Notifications'
+import BrandMark from '../../components/ui/BrandMark'
 
 type NavItem = { to: string; label: string; icon: LucideIcon | React.ComponentType<{ size?: number; className?: string }>; end?: boolean }
 const GROUPS: { title: string; items: NavItem[] }[] = [
@@ -60,7 +61,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const Sidebar = (
     <div className="flex flex-col h-full">
       <div className="h-16 flex items-center gap-3 px-5 border-b border-line shrink-0">
-        <span className="w-8 h-8 rounded-full bg-accent text-accent-fg grid place-items-center font-display font-extrabold text-sm">{logo.slice(0, 1).toUpperCase()}</span>
+        <BrandMark size={34} />
         <div className="min-w-0"><p className="font-mono text-sm font-bold text-fg leading-none">&lt;{logo} /&gt;</p><p className="text-[0.65rem] text-muted mt-1 uppercase tracking-wider">Dashboard</p></div>
       </div>
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
@@ -83,7 +84,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </nav>
       <div className="border-t border-line p-3 shrink-0">
         <div className="flex items-center gap-3 px-2 py-1.5">
-          <span className="w-8 h-8 rounded-full bg-surface-2 grid place-items-center text-xs font-bold text-fg">{(admin?.name || admin?.email || '?').slice(0, 1).toUpperCase()}</span>
+          <BrandMark size={32} />
           <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-fg truncate">{admin?.name}</p><p className="text-[0.68rem] text-muted truncate">{admin?.email}</p></div>
           <button onClick={async () => { await logout(); nav('/admin/login', { replace: true }) }} className="p-2 text-muted hover:text-red-500" title="Sign out" aria-label="Sign out"><LogOut size={15} /></button>
         </div>

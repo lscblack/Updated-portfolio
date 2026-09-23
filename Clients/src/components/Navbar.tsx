@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Sun, Moon, Menu, X, ArrowUpRight } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useSite } from '../contexts/SiteContext'
+import BrandMark from './ui/BrandMark'
 
 export default function Navbar() {
   const { mode, toggle } = useTheme()
@@ -43,7 +44,7 @@ export default function Navbar() {
         <div className={`container-x transition-all duration-300 ${scrolled ? 'pt-3' : 'pt-5'}`}>
           <nav className={`pointer-events-auto flex items-center justify-between gap-4 transition-all duration-300 rounded-full px-3 sm:px-4 ${scrolled ? 'glass border border-line shadow-[0_10px_40px_-20px_rgb(0_0_0/.5)] h-14' : 'h-14 bg-transparent border border-transparent'}`} aria-label="Primary">
             <a href="#hero" className="flex items-center gap-2 pl-1 group" aria-label="Back to top">
-              <span className="w-8 h-8 rounded-full bg-accent text-accent-fg grid place-items-center font-display font-extrabold text-sm tracking-tight transition-transform group-hover:rotate-[-8deg]">{logo.slice(0, 1).toUpperCase()}</span>
+              <BrandMark size={34} className="transition-transform group-hover:scale-105" />
               <span className="font-mono text-sm font-bold tracking-tight text-fg">&lt;{logo} /&gt;</span>
             </a>
 

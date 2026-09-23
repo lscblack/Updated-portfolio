@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { ArrowUp, ArrowUpRight, Mail, MapPin, Phone, FileText, Briefcase } from 'lucide-react'
 import { useSite } from '../contexts/SiteContext'
 import { SocialIcon } from './ui/Brand'
+import BrandMark from './ui/BrandMark'
 import Reveal from './ui/Reveal'
 
 export default function Footer() {
@@ -20,7 +21,7 @@ export default function Footer() {
             {/* brand */}
             <div className="max-w-sm">
               <Link to="/" className="inline-flex items-center gap-2.5">
-                <span className="w-9 h-9 rounded-full bg-accent text-accent-fg grid place-items-center font-display font-extrabold text-sm">{(s?.logo_text || 'lsc').slice(0, 1).toUpperCase()}</span>
+                <BrandMark size={38} />
                 <span className="font-mono text-base font-bold text-fg">&lt;{s?.logo_text || 'lsc'} /&gt;</span>
               </Link>
               <p className="mt-4 text-sm text-muted leading-relaxed">{a?.role}{a?.location ? ` based in ${a.location}.` : '.'} {s?.footer_text}</p>

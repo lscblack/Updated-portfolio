@@ -125,7 +125,7 @@ export const COLLECTIONS: Record<string, CollectionDef> = {
       { key: 'label', label: 'Label', type: 'text' },
       { key: 'icon', label: 'Icon', type: 'icon' },
       { key: 'quote', label: 'Quote', type: 'textarea', span: 2 },
-      { key: 'media_url', label: 'Photo or clip of you doing it', type: 'image', span: 2, hint: 'Shown full-bleed beside the text. Upload a photo, or paste the URL of a short muted clip (.mp4/.webm) and set the kind to video.' },
+      { key: 'media_url', label: 'Photo or clip of you doing it', type: 'image', span: 2, hint: 'Shown full-bleed beside the text. Upload a photo or an animated GIF, or paste the URL of a short muted clip (.mp4/.webm) and set the kind to video. Activities with no media share the growing tree instead.' },
       { key: 'media_kind', label: 'Media kind', type: 'select', options: ['image', 'video'] },
       { key: 'caption', label: 'Caption', type: 'text' },
       { key: 'visible', label: 'Visible on the site', type: 'boolean', span: 2 },

@@ -6,10 +6,11 @@ import type { Activity } from '../lib/types'
 import SectionHeader from './ui/SectionHeader'
 import Reveal from './ui/Reveal'
 import ActivityScene from './ui/ActivityScene'
+import LifeTree from './ui/LifeTree'
 import { useMinWidth } from './ui/ScrollFx'
 
 /** The media (or animated scene) for one activity, with a slow drift so it feels alive. */
-function Media({ a, active }: { a: Activity; active: boolean }) {
+function Media({ a, active, compact = false }: { a: Activity; active: boolean; compact?: boolean }) {
   const reduce = useReducedMotion()
   if (a.media_url && a.media_kind === 'video') {
     return <video src={a.media_url} muted loop playsInline autoPlay={!reduce} className="absolute inset-0 w-full h-full object-cover" aria-label={a.caption || a.label} />
@@ -21,13 +22,14 @@ function Media({ a, active }: { a: Activity; active: boolean }) {
         animate={reduce ? {} : { scale: active ? 1.08 : 1 }} transition={{ duration: 7, ease: 'linear' }} />
     )
   }
-  return <div className="absolute inset-0"><ActivityScene kind={`${a.icon} ${a.label}`} playing={active} /></div>
+  // only reached when this activity has no media of its own
+  return <div className="absolute inset-0 grid place-items-center">{compact ? <ActivityScene kind={`${a.icon} ${a.label}`} playing={active} /> : null}</div>
 }
 
-function Panel({ a, active }: { a: Activity; active: boolean }) {
+function Panel({ a, active, tree, compact = false }: { a: Activity; active: boolean; tree?: React.ReactNode; compact?: boolean }) {
   return (
     <div className="relative w-full h-full overflow-hidden rounded-card-lg bg-surface-2/60">
-      <Media a={a} active={active} />
+      {!a.media_url && tree ? <div className="absolute inset-0 p-4">{tree}</div> : <Media a={a} active={active} compact={compact} />}
       <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 p-6">
         <span className="inline-flex items-center gap-2 tag !bg-black/45 !text-white !border-white/20 backdrop-blur"><Icon name={a.icon} size={12} /> {a.label}</span>
@@ -50,7 +52,7 @@ function Row({ a, i, onEnter }: { a: Activity; i: number; onEnter: (i: number) =
       <h3 className="mt-5 font-display font-extrabold text-2xl lg:text-3xl text-fg leading-tight">{a.label}</h3>
       <p className="mt-3 text-muted leading-relaxed text-pretty max-w-lg">{a.quote}</p>
       {/* the media also appears inline on small screens, where there is no sticky panel */}
-      <div className="lg:hidden mt-5 aspect-[4/3]"><Panel a={a} active={inView} /></div>
+      <div className="lg:hidden mt-5 aspect-[4/3]"><Panel a={a} active={inView} compact /></div>
     </motion.article>
   )
 }
@@ -82,12 +84,16 @@ export default function Activities() {
             <div className="relative">
             <div className="sticky top-24 h-[74vh] flex flex-col">
               <motion.div style={{ y }} className="flex-1 min-h-0">
-                <AnimatePresence mode="wait">
-                  <motion.div key={cur.id ?? active} initial={{ opacity: 0, scale: 1.03 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.99 }}
-                    transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }} className="w-full h-full">
-                    <Panel a={cur} active />
-                  </motion.div>
-                </AnimatePresence>
+                {cur.media_url ? (
+                  <AnimatePresence mode="wait">
+                    <motion.div key={cur.id ?? active} initial={{ opacity: 0, scale: 1.03 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.99 }}
+                      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }} className="w-full h-full">
+                      <Panel a={cur} active />
+                    </motion.div>
+                  </AnimatePresence>
+                ) : (
+                  <Panel a={cur} active tree={<LifeTree items={items.map(x => ({ icon: x.icon, label: x.label }))} active={active} />} />
+                )}
               </motion.div>
               <div className="mt-4 flex gap-1.5 shrink-0">
                 {items.map((a, i) => <span key={a.id ?? i} className={`h-1 rounded-full transition-all duration-500 ${i === active ? 'w-8 bg-accent-ink' : 'w-3 bg-line'}`} />)}
